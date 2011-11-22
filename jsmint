@@ -1,0 +1,133 @@
+#!/usr/bin/env node
+
+// Copyright (c) 2011 (MIT License)
+// William R Conant <will@willconant.com>
+// 
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+// 
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+
+var fs = require('fs');
+var parser = require('./parser');
+
+var lastSwitch = null, sourceDirpath, destDirpath, sourceFilepath;
+each(process.argv, function (arg, i) {
+	if (i < 2) { return; }
+	if (arg.charAt(0) === '-') {
+		lastSwitch = arg;
+	}
+	else {
+		if (lastSwitch === '--source-dir') {
+			sourceDirpath = chompPath(arg);
+		}
+		else if (lastSwitch === '--dest-dir') {
+			destDirpath = chompPath(arg);
+		}
+		else if (lastSwitch !== null) {
+			console.log('invalid command line switch: ' + lastSwitch);
+			process.exit(1);
+		}
+		else {
+			sourceFilepath = arg;
+		}
+		
+		lastSwitch = null;
+	}
+});
+
+if (sourceDirpath || destDirpath) {
+	if (!sourceDirpath || !destDirpath) {
+		console.log('you must use --source-dir and --dest-dir together');
+		process.exit(1);
+	}
+	fs.readdir(sourceDirpath, onReaddir(sourceDirpath));
+}
+else {
+	if (!sourceFilepath) {
+		console.log("Usage:\njsmint somefile.mint\njsmint --source-dir source/dir --dest-dir dest/dir");
+		process.exit(1);
+	}
+	fs.readFile(sourceFilepath, 'utf8', onReadFile(sourceFilepath));
+}
+
+function chompPath(path) {
+	if (path.charAt(path.length - 1) === '/') {
+		return path.substr(0, path.length - 1);
+	}
+	else {
+		return path;
+	}
+}
+
+function onReaddir(dirpath) {
+	return function (__err, filenames) { if (__err) { throw __err; }
+		each(filter(filenames, function (f) { return /\.(jsmint|mint)$/.test(f); }), function (filename) {
+			var filepath = dirpath + '/' + filename;
+			fs.stat(filepath, onStats(filepath));
+		});
+	};
+}
+
+function onStats(filepath) {
+	return function (__err, stats) { if (__err) { throw __err; }
+		if (stats.isDirectory()) {
+			fs.readdir(filepath, onReaddir(filepath));
+		}
+		else {
+			fs.readFile(filepath, 'utf8', onReadFile(filepath));
+		}
+	};
+}
+
+function onReadFile(filepath) {
+	return function (__err, source) { if (__err) { throw __err; }
+		var result = parser.compile(filepath, source);
+		if (result.error) {
+			console.log(result.error.message);
+		}
+		else if (destDirpath) {
+			filepath = (destDirpath + filepath.substr(sourceDirpath.length)).replace(/\.[a-z]+$/, '.js');
+			fs.writeFile(filepath, result.output, 'utf8', onWriteFile(filepath));
+		}
+		else {
+			process.stdout.write(result.output);
+		}
+	};
+}
+
+function onWriteFile(filepath) {
+	return function (__err) { if (__err) { throw __err; }
+		// console.log("wrote", filepath);
+	};
+}
+
+function each(ar, f) {
+	var i;
+	for (i = 0; i < ar.length; i++) {
+		f(ar[i], i);
+	}
+}
+
+function filter(ar, f) {
+	var i, j = 0, r = [];
+	for (i = 0; i < ar.length; i++) {
+		if (f(ar[i], i)) {
+			r[j++] = ar[i];
+		}
+	}
+	return r;
+}

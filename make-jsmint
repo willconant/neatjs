@@ -1,0 +1,20 @@
+#!/usr/bin/env node
+
+var fs = require('fs');
+var parser = require('./parser');
+
+fs.readFile('./jsmint.mint', 'utf8', onReadFile);
+
+function onReadFile(err, source) {
+	if (err) throw err;
+	var result = parser.compile('jsmint.mint', source);
+	if (result.error) {
+		throw result.error;
+	}
+	fs.writeFile('./jsmint', result.output, 'utf8', onWriteFile);
+}
+
+function onWriteFile(err) {
+	if (err) throw err;
+	console.log("DONE");
+}

@@ -1,0 +1,32 @@
+#!/usr/bin/env node
+
+var fs = require('fs');
+
+fs.readdir('./builtins', onDir);
+
+var fileCount;
+var output = '';
+
+function onDir(err, filenames) {
+	if (err) throw err;
+	fileCount = filenames.length;
+	filenames.forEach(function(filename) {
+		fs.readFile('./builtins/' + filename, 'utf8', onReadFile(filename));
+	});
+}
+
+function onReadFile(filename) {
+	return function(err, source) {
+		if (err) throw err;
+		output += "exports." + (/^\w+/.exec(filename))[0] + " = " + JSON.stringify("\n" + source) + ";\n\n";
+		fileCount -= 1;
+		if (fileCount === 0) {
+			fs.writeFile('./builtins.js', output, 'utf8', onWriteFile);
+		}
+	};
+}
+
+function onWriteFile(err) {
+	if (err) throw err;
+	console.log("DONE");
+}
