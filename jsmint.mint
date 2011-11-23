@@ -21,6 +21,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+#include each, filter;
+#declare require, process, console;
+
 var fs = require('fs');
 var parser = require('./parser');
 

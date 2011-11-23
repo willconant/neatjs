@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // Copyright (c) 2011 (MIT License)
-// William R Conant <will@willconant.com>
+// Will Conant <will.conant@gmail.com>
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -20,6 +20,9 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
+
+/* #include each, filter; */  
+/* #declare require, process, console; */   
 
 var fs = require('fs');
 var parser = require('./parser');
@@ -115,19 +118,41 @@ function onWriteFile(filepath) {
 	};
 }
 
-function each(ar, f) {
-	var i;
-	for (i = 0; i < ar.length; i++) {
-		f(ar[i], i);
+function each() {
+	var __ = Array.prototype.forEach;
+	if (__) {
+		each = function(ar, f) {
+			__.call(ar, f);
+		};
 	}
+	else {
+		each = function(ar, f) {
+			var i;
+			for (i = 0; i < ar.length; i++) {
+				f(ar[i], i, ar);
+			}
+		};
+	}
+	return each.apply(this, arguments);
 }
 
-function filter(ar, f) {
-	var i, j = 0, r = [];
-	for (i = 0; i < ar.length; i++) {
-		if (f(ar[i], i)) {
-			r[j++] = ar[i];
-		}
+function filter() {
+	var __ = Array.prototype.filter;
+	if (__) {
+		filter = function(ar, f) {
+			__.call(ar, f);
+		};
 	}
-	return r;
+	else {
+		filter = function(ar, f) {
+			var i, j = 0, r = [];
+			for (i = 0; i < ar.length; i++) {
+				if (f(ar[i], i, ar)) {
+					r[j++] = ar[i];
+				}
+			}
+			return r;
+		};
+	}
+	return filter.apply(this, arguments);
 }

@@ -1,7 +1,18 @@
-function map(ar, f) {
-	var i, r = [];
-	for (i = 0; i < ar.length; i++) {
-		r[i] = f(ar[i], i);
+function map() {
+	var __ = Array.prototype.map;
+	if (__) {
+		map = function(ar, f) {
+			__.call(ar, f);
+		};
 	}
-	return r;
+	else {
+		map = function(ar, f) {
+			var i, r = [];
+			for (i = 0; i < ar.length; i++) {
+				r[i] = f(ar[i], i, ar);
+			}
+			return r;
+		};
+	}
+	return map.apply(this, arguments);
 }

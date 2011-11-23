@@ -52,43 +52,22 @@ function render(elt) {
 function Program(preamble, elts) {
 	this.preamble = preamble;
 	this.elts = elts;
-	this.needsBuiltins = {};
 }
 exports.Program = Program;
 Program.prototype.validate = function() {
 	var ctx = {
 		program: this,
-		declaredVars: {
-			console: 2,
-			Buffer: 2,
-			global: 2,
-			module: 2,
-			exports: 2,
-			setTimeout: 2,
-			clearTimeout: 2,
-			setInterval: 2,
-			clearInterval: 2,
-			require: 2,
-			process: 2,
-			JSON: 2,
-			Error: 2,
-			Array: 2,
-			Boolean: 2,
-			Date: 2,
-			Function: 2,
-			Iterator: 2,
-			Number: 2,
-			Object: 2,
-			RegExp: 2,
-			String: 2,
-			undefined: 2,
-			Math: 2,
-			encodeURIComponent: 2,
-			decodeURIComponent: 2
-		},
-		varOk: true
+		declared: {},
+		included: {},
+		varOk: true,
+		pragmaOk: true
 	};
 	var i;
+	for (i = 0; i < this.elts.length; i++) {
+		if (this.elts[i].pragma) {
+			this.elts[i].pragma(ctx);
+		}
+	}
 	for (i = 0; i < this.elts.length; i++) {
 		if (this.elts[i].declare) {
 			this.elts[i].declare(ctx);
@@ -97,6 +76,7 @@ Program.prototype.validate = function() {
 	for (i = 0; i < this.elts.length; i++) {
 		this.elts[i].validate(ctx);
 	}
+	this.included = ctx.included;
 };
 
 Program.prototype.render = function() {
@@ -105,8 +85,8 @@ Program.prototype.render = function() {
 		render({elts: this.elts})
 	];
 	var k;
-	for (k in this.needsBuiltins) {
-		if (this.needsBuiltins.hasOwnProperty(k)) {
+	for (k in this.included) {
+		if (this.included.hasOwnProperty(k)) {
 			out.push(builtins[k]);
 		}
 	}
@@ -145,7 +125,7 @@ function IfStatement(elts) {
 exports.IfStatement = IfStatement;
 
 IfStatement.prototype.validate = function(ctx) {
-	ctx = {declaredVars: ctx.declaredVars, program: ctx.program};
+	ctx = {declared: ctx.declared, program: ctx.program};
 	this.testExpr.validate(ctx);
 	this.block.validate(ctx);
 	if (this.elsePart) {
@@ -162,7 +142,7 @@ function WhileStatement(elts) {
 exports.WhileStatement = WhileStatement;
 
 WhileStatement.prototype.validate = function(ctx) {
-	ctx = {declaredVars: ctx.declaredVars, program: ctx.program};
+	ctx = {declared: ctx.declared, program: ctx.program};
 	this.testExpr.validate(ctx);
 	this.block.validate(ctx);
 };
@@ -177,7 +157,7 @@ function ForStatement(elts) {
 exports.ForStatement = ForStatement;
 
 ForStatement.prototype.validate = function(ctx) {
-	ctx = {declaredVars: ctx.declaredVars, program: ctx.program};
+	ctx = {declared: ctx.declared, program: ctx.program};
 	this.initExprs.validate(ctx);
 	this.testExprs.validate(ctx);
 	this.postExprs.validate(ctx);
@@ -217,12 +197,12 @@ exports.FunctionStatement = FunctionStatement;
 
 FunctionStatement.prototype.declare = function(ctx) {
 	var identText = this.ident.elts[0].text;
-	if (ctx.declaredVars[identText] === 1) {
+	if (ctx.declared[identText] === 1) {
 		// already declared
 		throw [this.ident, "'" + identText + "' is already declared in this scope"];
 	}
 	else {
-		ctx.declaredVars[identText] = 1;
+		ctx.declared[identText] = 1;
 	}
 };
 
@@ -230,13 +210,13 @@ FunctionStatement.prototype.validate = function(ctx) {
 	if (!ctx.varOk) {
 		throw [this.elts[0], "functions may only be declared in the top-level of the program or directly within other functions"];
 	}
-	ctx = {declaredVars: newDeclaredVars(ctx.declaredVars), varOk: true, program: ctx.program};
+	ctx = {declared: newDeclaredVars(ctx.declared), varOk: true, program: ctx.program};
 	this.args.declareArgs(ctx);
 	if (this.thisElt) {
-		if (ctx.declaredVars[this.thisElt.text] === 1) {
+		if (ctx.declared[this.thisElt.text] === 1) {
 			throw [this.thisElt, "'" + this.thisElt.text + "' is already declared in this scope"];
 		}
-		ctx.declaredVars[this.thisElt.text] = 1;
+		ctx.declared[this.thisElt.text] = 1;
 	}
 	this.block.declare(ctx);
 	this.block.validate(ctx);
@@ -315,12 +295,12 @@ VarStatement.prototype.declare = function(ctx) {
 				}
 				ident = expr.elts[0].elts[0];
 			}
-			if (ctx.declaredVars[ident.text] === 1) {
+			if (ctx.declared[ident.text] === 1) {
 				// already declared
 				throw [ident, "'" + ident.text + "' is already declared in this scope"];
 			}
 			else {
-				ctx.declaredVars[ident.text] = 1;
+				ctx.declared[ident.text] = 1;
 			}
 		}
 	}
@@ -330,7 +310,7 @@ VarStatement.prototype.validate = function(ctx) {
 	if (!ctx.varOk) {
 		throw [this.elts[0], "vars may only be declared in the top-level of the program or directly within functions"];
 	}
-	ctx = {declaredVars: ctx.declaredVars, program: ctx.program};
+	ctx = {declared: ctx.declared, program: ctx.program};
 	this.elts[1].validate(ctx);
 };
 
@@ -342,7 +322,7 @@ exports.ReturnStatement = ReturnStatement;
 
 ReturnStatement.prototype.validate = function(ctx) {
 	if (this.elts.length === 3) {
-		ctx = {declaredVars: ctx.declaredVars, program: ctx.program};
+		ctx = {declared: ctx.declared, program: ctx.program};
 		this.elts[1].validate(ctx);
 	}
 }
@@ -354,7 +334,7 @@ function ThrowStatement(elts) {
 exports.ThrowStatement = ThrowStatement;
 
 ThrowStatement.prototype.validate = function(ctx) {
-	ctx = {declaredVars: ctx.declaredVars, program: ctx.program};
+	ctx = {declared: ctx.declared, program: ctx.program};
 	this.elts[1].validate(ctx);
 }
 
@@ -385,21 +365,21 @@ ExprList.prototype.declareArgs = function(ctx, noPassExpr) {
 		if (i % 2 === 0) {
 			if (this.elts[i].isIdent) {
 				ident = this.elts[i].elts[0];
-				if (ctx.declaredVars[ident.text] === 1) {
+				if (ctx.declared[ident.text] === 1) {
 					throw [ident, "'" + ident.text + "' is already declared in this scope"];
 				}
-				ctx.declaredVars[ident.text] = 1;
+				ctx.declared[ident.text] = 1;
 			}
 			else if (noPassExpr) {
 				throw [this.elts[i], "arrow functions connot have error passing params"];
 			}
 			else if (this.elts[i].elts[1]) {
 				ident = this.elts[i].elts[1];
-				if (!ctx.declaredVars[ident.text]) {
+				if (!ctx.declared[ident.text]) {
 					throw [this.elts[i], "'" + ident.text + "' has not been declared"];
 				}
 				// we have to list the pass var as redeclared so it doesn't get hidden
-				ctx.declaredVars[ident.text] = 1;
+				ctx.declared[ident.text] = 1;
 			}
 		}
 	}
@@ -453,13 +433,8 @@ IdentExpr.prototype.isLabel = true;
 IdentExpr.prototype.isFormalParam = true;
 
 IdentExpr.prototype.validate = function(ctx) {
-	if (!ctx.declaredVars[this.elts[0].text]) {
-		if (builtins.hasOwnProperty(this.elts[0].text)) {
-			ctx.program.needsBuiltins[this.elts[0].text] = true;
-		}
-		else {
-			throw [this.elts[0], "'" + this.elts[0].text + "' has not been declared"];
-		}
+	if (!ctx.declared[this.elts[0].text]) {
+		throw [this.elts[0], "'" + this.elts[0].text + "' has not been declared"];
 	}
 };
 
@@ -471,7 +446,7 @@ exports.UnaryOpExpr = UnaryOpExpr;
 
 UnaryOpExpr.prototype.validate = function(ctx) {
 	ctx = {
-		declaredVars: ctx.declaredVars,
+		declared: ctx.declared,
 		program: ctx.program
 	};
 	this.elts[1].validate(ctx);
@@ -486,7 +461,7 @@ BinaryOpExpr.prototype.isBinOp = true;
 
 BinaryOpExpr.prototype.validate = function(ctx) {
 	ctx = {
-		declaredVars: ctx.declaredVars,
+		declared: ctx.declared,
 		program: ctx.program
 	};
 	this.elts[0].validate(ctx);
@@ -507,6 +482,22 @@ BinaryOpExpr.prototype.render = function() {
 	return out.join('');
 };
 
+/* TernaryOpExpr */
+function TernaryOpExpr(elts) {
+	this.elts = elts;
+}
+exports.TernaryOpExpr = TernaryOpExpr;
+
+TernaryOpExpr.prototype.validate = function(ctx) {
+	ctx = {
+		declared: ctx.declared,
+		program: ctx.program
+	};
+	this.elts[0].validate(ctx);
+	this.elts[2].validate(ctx);
+	this.elts[4].validate(ctx);
+};
+
 /* InvokeExpr */
 function InvokeExpr(elts) {
 	this.elts = elts;
@@ -517,7 +508,7 @@ function InvokeExpr(elts) {
 exports.InvokeExpr = InvokeExpr;
 
 InvokeExpr.prototype.validate = function(ctx) {
-	ctx = {declaredVars: ctx.declaredVars, program: ctx.program};
+	ctx = {declared: ctx.declared, program: ctx.program};
 	this.targetExpr.validate(ctx);
 	this.args.validate(ctx);
 };
@@ -534,7 +525,7 @@ CallExpr.prototype.checkFuncSpec = function() {
 };
 
 CallExpr.prototype.validate = function(ctx) {
-	ctx = {declaredVars: ctx.declaredVars, program: ctx.program};
+	ctx = {declared: ctx.declared, program: ctx.program};
 	this.targetExpr.validate(ctx);
 	this.args.validate(ctx);
 };
@@ -549,7 +540,7 @@ exports.IndexExpr = IndexExpr;
 IndexExpr.prototype.isLvalue = true;
 
 IndexExpr.prototype.validate = function(ctx) {
-	ctx = {declaredVars: ctx.declaredVars, program: ctx.program};
+	ctx = {declared: ctx.declared, program: ctx.program};
 	this.targetExpr.validate(ctx);
 	this.subExpr.validate(ctx);
 };
@@ -563,7 +554,7 @@ exports.PropertyExpr = PropertyExpr;
 PropertyExpr.prototype.isLvalue = true;
 
 PropertyExpr.prototype.validate = function(ctx) {
-	ctx = {declaredVars: ctx.declaredVars, program: ctx.program};
+	ctx = {declared: ctx.declared, program: ctx.program};
 	this.targetExpr.validate(ctx);
 };
 
@@ -576,7 +567,7 @@ function NewExpr(elts) {
 exports.NewExpr = NewExpr;
 
 NewExpr.prototype.validate = function(ctx) {
-	ctx = {declaredVars: ctx.declaredVars, program: ctx.program};
+	ctx = {declared: ctx.declared, program: ctx.program};
 	this.targetExpr.validate(ctx);
 	this.args.validate(ctx);
 };
@@ -591,13 +582,13 @@ function FunctionExpr(elts, thisElt) {
 exports.FunctionExpr = FunctionExpr;
 
 FunctionExpr.prototype.validate = function(ctx) {
-	ctx = {declaredVars: newDeclaredVars(ctx.declaredVars), varOk: true, program: ctx.program};
+	ctx = {declared: newDeclaredVars(ctx.declared), varOk: true, program: ctx.program};
 	this.args.declareArgs(ctx);
 	if (this.thisElt) {
-		if (ctx.declaredVars[this.thisElt.text] === 1) {
+		if (ctx.declared[this.thisElt.text] === 1) {
 			throw [this.thisElt, "'" + this.thisElt.text + "' is already declared in this scope"];
 		}
-		ctx.declaredVars[this.thisElt.text] = 1;
+		ctx.declared[this.thisElt.text] = 1;
 	}
 	this.block.declare(ctx);
 	this.block.validate(ctx);
@@ -664,7 +655,7 @@ function ArrowFunctionExpr(elts) {
 exports.ArrowFunctionExpr = ArrowFunctionExpr;
 
 ArrowFunctionExpr.prototype.validate = function(ctx) {
-	ctx = {declaredVars: newDeclaredVars(ctx.declaredVars), varOk: true, program: ctx.program};
+	ctx = {declared: newDeclaredVars(ctx.declared), varOk: true, program: ctx.program};
 	this.args.declareArgs(ctx, true);
 	this.expr.validate(ctx);
 };
@@ -683,8 +674,8 @@ function SimpleArrowFunctionExpr(elts) {
 exports.SimpleArrowFunctionExpr = SimpleArrowFunctionExpr;
 
 SimpleArrowFunctionExpr.prototype.validate = function(ctx) {
-	ctx = {declaredVars: newDeclaredVars(ctx.declaredVars), varOk: true, program: ctx.program};
-	ctx.declaredVars['_'] = 1;
+	ctx = {declared: newDeclaredVars(ctx.declared), varOk: true, program: ctx.program};
+	ctx.declared['_'] = 1;
 	this.expr.validate(ctx);
 };
 
@@ -700,7 +691,7 @@ function ArrayExpr(elts) {
 exports.ArrayExpr = ArrayExpr;
 
 ArrayExpr.prototype.validate = function(ctx) {
-	this.elts[1].validate({declaredVars: ctx.declaredVars});
+	this.elts[1].validate({declared: ctx.declared});
 };
 
 /* ObjectExpr */
@@ -710,7 +701,7 @@ function ObjectExpr(elts) {
 exports.ObjectExpr = ObjectExpr;
 
 ObjectExpr.prototype.validate = function(ctx) {
-	ctx = {declaredVars: ctx.declaredVars, program: ctx.program};
+	ctx = {declared: ctx.declared, program: ctx.program};
 	var i;
 	for (i = 0; i < this.elts.length; i++) {
 		if (i % 4 === 3) {
@@ -749,3 +740,63 @@ function PassExpr(elts) {
 exports.PassExpr = PassExpr;
 PassExpr.prototype.isFormalParam = true;
 PassExpr.prototype.isPassExpr = true;
+
+/* IncludePragma */
+function IncludePragma(elts) {
+	this.elts = elts;
+}
+exports.IncludePragma = IncludePragma;
+
+IncludePragma.prototype.pragma = function(ctx) {
+	var i;
+	for (i = 0; i < this.elts.length; i++) {
+		if (i % 2 === 1) {
+			ctx.declared[this.elts[i].text] = 1;
+			ctx.included[this.elts[i].text] = true;
+		}
+	}
+};
+
+IncludePragma.prototype.validate = function(ctx) {
+	if (!ctx.pragmaOk) {
+		throw [this.elts[0], "#include is only allowed at the top-level of the program"];
+	}
+};
+
+IncludePragma.prototype.render = function() {
+	var out = ['/* '], i;
+	for (i = 0; i < this.elts.length; i++) {
+		out.push(this.elts[i].text);
+		if (i % 2 === 0) {
+			out.push(' ');
+		}
+	}
+	out.push('*/');
+	for (i = 0; i < this.elts.length; i++) {
+		out.push(this.elts[i].whitespace);
+	}
+	return out.join('');
+};
+
+/* DeclarePragma */
+function DeclarePragma(elts) {
+	this.elts = elts;
+}
+exports.DeclarePragma = DeclarePragma;
+
+DeclarePragma.prototype.pragma = function(ctx) {
+	var i;
+	for (i = 0; i < this.elts.length; i++) {
+		if (i % 2 === 1) {
+			ctx.declared[this.elts[i].text] = 1;
+		}
+	}
+};
+
+DeclarePragma.prototype.validate = function(ctx) {
+	if (!ctx.pragmaOk) {
+		throw [this.elts[0], "#declare is only allowed at the top-level of the program"];
+	}
+};
+
+DeclarePragma.prototype.render = IncludePragma.prototype.render;

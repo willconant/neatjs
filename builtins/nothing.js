@@ -1,3 +1,3 @@
-function nada(x) {
+function nothing(x) {
 	return x === null || typeof x === 'undefined';
 }

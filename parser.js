@@ -62,6 +62,7 @@ var tokens = [
 	{ eq: '"'                                        },	
 	{ eq: "'"                                        },	
 	{ eq: '@'                                        },	
+	{ eq: '?'                                        },	
 	{ re: /^if\b/                                    },
 	{ re: /^else\b/                                  },
 	{ re: /^while\b/                                 },
@@ -85,7 +86,9 @@ var tokens = [
 	{ re: /^null\b/                                  },
 	{ re: /^true\b/                                  },
 	{ re: /^false\b/                                 },
-	{ re: /^[a-zA-Z_][a-zA-Z0-9_]*/, type: 'IDENT'   }
+	{ re: /^[a-zA-Z$_][a-zA-Z0-9$_]*/, type: 'IDENT' },
+	{ re: /^#include\b/                              },
+	{ re: /^#declare\b/                              }
 ];
 
 var whitespace = [
@@ -270,6 +273,8 @@ Parser.prototype.parseStatement = function() {
 		case 'return':   return this.parseReturn();
 		case 'throw':    return this.parseThrow();
 		case 'var':      return this.parseVar();
+		case '#include': return this.parseIncludePragma();
+		case '#declare': return this.parseDeclarePragma();
 		default:         return this.parseExprStatement();
 	}
 };
@@ -451,6 +456,9 @@ function precOf(t) {
 		case '||':
 			return 10;
 		
+		case '?':
+			return 7;
+		
 		case '=':
 		case '+=':
 		case '-=':
@@ -560,6 +568,15 @@ Parser.prototype.parseExpr = function(prec) {
 				else {
 					break GOBBLE;
 				}
+			case '?':
+				if (precOf(this.peek()) >= prec) {
+					opr = this.next();
+					expr = new ast.TernaryOpExpr([expr, opr, this.parseExpr(0), this.expect(':'), this.parseExpr(precOf(opr))]);
+				}
+				else {
+					break GOBBLE;
+				}
+				break;
 			case '.':
 				elts = [expr, this.next(), this.expect('IDENT')];
 				if (this.peek().type === '(') {
@@ -774,6 +791,40 @@ Parser.prototype.parseBlock = function() {
 	}
 	elts.push(this.expect('}'));
 	return new ast.Block(elts);
+};
+
+Parser.prototype.parseIncludePragma = function() {
+	var elts = [
+		this.expect('#include')
+	];
+	while (true) {
+		elts.push(this.expect('IDENT'));
+		if (this.peek().type === ',') {
+			elts.push(this.next());
+		}
+		else {
+			elts.push(this.expect(';'));
+			break;
+		}
+	}
+	return new ast.IncludePragma(elts);
+};
+
+Parser.prototype.parseDeclarePragma = function() {
+	var elts = [
+		this.expect('#declare')
+	];
+	while (true) {
+		elts.push(this.expect('IDENT'));
+		if (this.peek().type === ',') {
+			elts.push(this.next());
+		}
+		else {
+			elts.push(this.expect(';'));
+			break;
+		}
+	}
+	return new ast.DeclarePragma(elts);
 };
 
 Parser.prototype.error = function(msg, loc) {

@@ -2,71 +2,106 @@
 
 Freshens your JavaScript as it validates!
 
-JSMint is a strict dialect of JavaScript with a few carefully chosen tweaks that compiles into standard JavaScript without dropping your comments or changing any line numbers.
+JSMint is a strict dialect of JavaScript with a few carefully chosen tweaks. It compiles into standard JavaScript without dropping your comments or changing any line numbers.
+
+The translation from JSMint to JavaScript saves you from a non-trivial amount of boilerplate but is ALWAYS easy to understand.
 
 ## Features ##
 
 ### Improved Function Definitions ###
 
-First, the `function` keyword has been dropped, so instead of:
+#### The `function` Keyword Has Been Dropped ####
 
-	function add(a, b) {
-		return a + b;
-	}
-	
-	Dog.prototype.bark = function (howManyTimes) {
-		while (howManyTimes > 0) {
-			console.log("woof!");
-			howManyTimes -= 1;
-		}
-	};
-
-You write:
+This:
 
 	add(a, b) {
 		return a + b;
 	}
 
-	Dog.prototype.bark = (howManyTimes) {
-		while (howManyTimes > 0) {
-			console.log("woof!");
-			howManyTimes -= 1;
-		}
+Compiles to:
+	
+	function add(a, b) {
+		return a + b;
+	}
+
+This:
+	
+	Dog.prototype.bark = () {
+		console.log("woof!");
 	};
 
-Second, the error prone `this` keyword has been dropped. Instead, you explicitly choose a name for the this-value in function declarations:
+Compiles to:
+	
+	Dog.prototype.bark = function () {
+		console.log("woof!");
+	};
+
+
+#### The `this` Keyword Has Been Banned ####
+
+Instead, you explicitly choose a name for the this-value in function declarations.
+
+This:
 
 	Dog.prototype.careForPuppies = () dog {
 		dog.puppies.forEach((puppy) {
-			// there is no confusion about the value of dog
 			dog.clean(puppy);
 		});
 	};
 
-Third, for very simple functions that return a single value, we have a shorter syntax:
+Compiles to:
+
+	Dog.prototype.careForPuppies = function () { var dog = this;
+		dog.puppies.forEach(function (puppy) {
+			dog.clean(puppy);
+		});
+	};
+
+
+#### Single Expression Functions ####
+
+For simple functions that return a single value, there is a shorter syntax.
+
+This:
 
 	var adder = (a, b) -> a + b;
+	
+Compiles to:
 
-If you only expect one param, you can be even more concise:
+	var adder = function (a, b) { return a + b; }
+	
+This:
 
 	var add3 = -> _ + 3;
 
-Fourth, for asynchronous programming in environments like Node.js, there is a better syntax for error handling:
+Compiles to:
+
+	var add3 = function (_) { return _ + 3; }
+
+
+#### Better Async Error Handler ####
+
+For asynchronous programming in environments like Node.js, there is a better syntax for error handling.
+
+This:
 
 	fs.readFile('filename', onReadFile);
-	
-	// if fs.readFile sends an error to this function, it will be thrown
 	onReadFile(@, text) {
 		console.log(text);
 	}
-	
-Even better, if you are composing async functions:
 
+Compiles to:
+
+	fs.readFile('filename', onReadFile);
+	function onReadFile(__err, text) { if (__err) { throw __err; }
+		console.log(text);
+	}
+	
+This:
+	
 	readFileOrDir(filename, callback) {
 		fs.stat(filename, onStat);
 		
-		// if fs.stat sends an error to onStat, it will be passed
-		// along to callback, and onStat will terminate.
 		onStat(@callback, stats) {
 			if (stats.isDirectory()) {
 				fs.readdir(filename, onReaddir);
@@ -81,6 +116,29 @@ Even better, if you are composing async functions:
 		}
 		
 		onReadFile(@callback, buffer) {
+			callback(null, 'file', buffer);
+		}
+	}
+
+Compiles to:
+
+	function readFileOrDir(filename, callback) {
+		fs.stat(filename, onStat);
+		
+		function onStat(__err, stats) { if (__err) { callback(__err); return; }
+			if (stats.isDirectory()) {
+				fs.readdir(filename, onReaddir);
+			}
+			else {
+				fs.readFile(filename, onReadFile);
+			}
+		}
+		
+		function onReaddir(__err, filenames) { if (__err) { callback(__err); return; }
+			callback(null, 'directory', filenames);
+		}
+		
+		function onReadFile(__err, buffer) { if (__err) { callback(__err); return; }
 			callback(null, 'file', buffer);
 		}
 	}
@@ -104,31 +162,64 @@ In async environments, try/catch seldom works the way people expect. JSMint remo
 	
 	onParsed(err, json) {
 		// if JSON.parse fails, err will be set
+		// otherwise, err will be null, and json will contain the result of JSON.parse
 	}
 
 See below for more info on JSMint's built-in functions.
 
 
-### Strict Syntax and Variable Name Checking ###
+### Variable Name Checking ###
+
+In JSMint, all variables and functions must be declared. This can be done in the following ways:
+
+- with the `var` keyword
+- with a function declaration
+- with the `#declare` pragma
+- with the `#include` pragma
+
+The `var` keyword and function declarations work just as expected, but JSMint is strict about where they can occur. Both may only occur at the top level of the program or at the top level of a function. You cannot declare a variable or function within a loop or branch.
+
+The `#declare` pragma can be used at the top level of your program to specify global variables you intend to use:
+
+	#declare process, Buffer;
+	process.stdout.write(new Buffer("testing"));
+
+The `#include` pragma can be used to statically include built-in functions. (More on this below)
+
+
+### Stricter Syntax ###
 
 Other than that, JSMint is just JavaScript with stricter syntax rules:
 
-- variables must be declared
 - no implied semicolons
-- if statements and while statements always require blocks
-- switch cases must break
-- vars and functions may only be declared at the top-level or directly within functions
+- if statements and while statements always require curly-braces
+- switch cases must break or return
 
 
 ### Built-in Functions ###
 
-Some versions of JavaScript are missing a few very critical features. To remedy this, JSMint provides some built-in functions. It does this by appending the built-ins you use to the end of your source. By doing it this way, JSMint is only a dependency during build-time and not during runtime.
+Some versions of JavaScript are missing a few very critical features, and not all JS environments provide a convenient module system. To remedy this, JSMint proivdes some built-in functions and a pragma for statically including them at the end of your script. For instance:
 
+	#include map;
+	var ages = map(people, -> _.age);
+
+In this case, JSMint will append a `map` function to the end of your script.
+
+You may include more than one function at a time:
+
+	#include map, filter;
+	var agesOfAdults = filter(map(people, -> _.age), -> _ >= 18);
+
+All of JSMint's built-in functions are also avaiable in an NPM module:
+
+	var trycatch = require('jsmint/builtins').trycatch;
+	
 
 #### each(array, func) ####
 
 Iterate over an array-like object (like Array.prototoype.forEach).
 
+	#include each;
 	each([1, 2, 3], (num) {
 		console.log(num);
 	});
@@ -136,7 +227,7 @@ Iterate over an array-like object (like Array.prototoype.forEach).
 
 #### keys(object) ####
 
-Return an array containing an objects property names (like Object.keys).
+Return an array containing an object's property names (like Object.keys).
 
 	var keys = keys(myObj);
 	each(keys, (key) {
@@ -167,11 +258,11 @@ Tests to see if a value is undefined.
 	}
 
 
-#### nada(val) ####
+#### nothing(val) ####
 
 Tests to see if a value is null or undefined.
 
-	if (nada(foo)) {
+	if (nothing(foo)) {
 		// foo === null || typeof foo === 'undefined'
 	}
 
