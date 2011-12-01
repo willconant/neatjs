@@ -25,6 +25,7 @@ var tokens = [
 	{ re: /^[0-9]+(\.[0-9]+)?/ , type: 'NUMBER'      },
 	{ eq: '==='                                      },
 	{ eq: '!=='                                      },
+	{ eq: '...'                                      },
 	{ eq: '->'                                       },
 	{ eq: '=='                                       },
 	{ eq: '!='                                       },
@@ -38,6 +39,7 @@ var tokens = [
 	{ eq: '<='                                       },
 	{ eq: '>='                                       },
 	{ eq: '=='                                       },
+	{ eq: '::'                                       },
 	{ eq: '*'                                        },
 	{ eq: '/'                                        },
 	{ eq: '-'                                        },
@@ -63,29 +65,55 @@ var tokens = [
 	{ eq: "'"                                        },	
 	{ eq: '@'                                        },	
 	{ eq: '?'                                        },	
-	{ re: /^if\b/                                    },
-	{ re: /^else\b/                                  },
-	{ re: /^while\b/                                 },
-	{ re: /^for\b/                                   },
-	{ re: /^switch\b/                                },
-	{ re: /^case\b/                                  },
-	{ re: /^function\b/                              },
+	
 	{ re: /^break\b/                                 },
-	{ re: /^continue\b/                              },
-	{ re: /^return\b/                                },
-	{ re: /^try\b/                                   },
+	{ re: /^case\b/                                  },
 	{ re: /^catch\b/                                 },
-	{ re: /^throw\b/                                 },
-	{ re: /^finally\b/                               },
+	{ re: /^continue\b/                              },
+	{ re: /^debugger\b/                              },
+	{ re: /^default\b/                               },
 	{ re: /^delete\b/                                },
+	{ re: /^do\b/                                    },
+	{ re: /^else\b/                                  },
+	{ re: /^finally\b/                               },
+	{ re: /^for\b/                                   },
+	{ re: /^function\b/                              },
+	{ re: /^if\b/                                    },
+	{ re: /^in\b/                                    },
 	{ re: /^instanceof\b/                            },
-	{ re: /^typeof\b/                                },
 	{ re: /^new\b/                                   },
-	{ re: /^var\b/                                   },
+	{ re: /^return\b/                                },
+	{ re: /^switch\b/                                },
 	{ re: /^this\b/                                  },
+	{ re: /^throw\b/                                 },
+	{ re: /^try\b/                                   },
+	{ re: /^typeof\b/                                },
+	{ re: /^var\b/                                   },
+	{ re: /^void\b/                                  },
+	{ re: /^while\b/                                 },
+	{ re: /^with\b/                                  },
+	
 	{ re: /^null\b/                                  },
 	{ re: /^true\b/                                  },
 	{ re: /^false\b/                                 },
+	
+	{ re: /^class\b/                                 },
+	{ re: /^enum\b/                                  },
+	{ re: /^export\b/                                },
+	{ re: /^extend\b/                                },
+	{ re: /^import\b/                                },
+	{ re: /^super\b/                                 },
+	
+	{ re: /^implements\b/                            },
+	{ re: /^interface\b/                             },
+	{ re: /^let\b/                                   },
+	{ re: /^package\b/                               },
+	{ re: /^private\b/                               },
+	{ re: /^protected\b/                             },
+	{ re: /^public\b/                                },
+	{ re: /^static\b/                                },
+	{ re: /^yield\b/                                 },
+	
 	{ re: /^[a-zA-Z$_][a-zA-Z0-9$_]*/, type: 'IDENT' },
 	{ re: /^#include\b/                              },
 	{ re: /^#declare\b/                              }
@@ -219,7 +247,7 @@ Parser.prototype.next = function() {
 		
 	case '===':
 	case '!==':
-		this.error("'" + result.type + "' is not supported");
+		this.error("use '" + result.type.substr(0, 2) + "' instead of '" + result.type + "'");
 	}
 	
 	return result;
@@ -314,27 +342,17 @@ Parser.prototype.parseWhile = function() {
 
 Parser.prototype.parseFor = function() {
 	var elts = [
-		this.expect('for')
+		this.expect('for'),
+		this.expect('('),
+		this.parseExprList(),
+		this.expect(';'),
+		this.parseExprList(),
+		this.expect(';'),
+		this.parseExprList(),
+		this.expect(')'),
+		this.parseBlock()
 	];
-	
-	/*if (this.peek().type === 'IDENT') {
-		elts.push(this.parseArgsList());
-		elts.push(this.expect('('));
-		elts.push(this.parseExpr());
-		elts.push(this.expect(')'));
-	}
-	else {*/
-		elts.push(this.expect('('));
-		elts.push(this.parseExprList());
-		elts.push(this.expect(';'));
-		elts.push(this.parseExprList());
-		elts.push(this.expect(';'));
-		elts.push(this.parseExprList());
-		elts.push(this.expect(')'));
-	/*}*/
-	
-	elts.push(this.parseBlock());
-	
+		
 	return new ast.ForStatement(elts);
 };
 
@@ -391,25 +409,6 @@ Parser.prototype.parseVar = function() {
 	];
 	return new ast.VarStatement(elts);
 };
-
-/* right now, we only support the standard for loop
-Parser.prototype.parseArgsList = function() {
-	var elts = [];
-	while (true) {
-		if (this.peek().type !== 'IDENT') {
-			break;
-		}
-		elts.push(this.next());
-		if (this.peek().type !== ',') {
-			break;
-		}
-		else {
-			elts.push(this.next());
-		}
-	}
-	return new ast.ArgsList(elts);
-};
-*/
 
 Parser.prototype.parseExprList = function() {
 	var elts = [];
@@ -600,6 +599,22 @@ Parser.prototype.parseExpr = function(prec) {
 				expr = new ast.IndexExpr(elts);
 				break;
 			
+			case '::':
+				elts = [expr, this.next()];
+				if (this.peek().type === 'IDENT') {
+					elts.push(this.next());
+				}
+				expr = new ast.PrototypePropertyExpr(elts);
+				break;
+			
+			case '...':
+				if (expr.astType !== 'IdentExpr') {
+					this.error("unexpected '...'");
+				}
+				elts = [expr.elts[0], this.next()];
+				expr = new ast.YadaExpr(elts);
+				break;
+			
 			default:
 				break GOBBLE;
 		}
@@ -688,30 +703,30 @@ Parser.prototype.parseGroupExpr = function() {
 	var exprList = this.parseExprList();
 	var closeParen = this.expect(')');
 	
-	var thisElt = null;
-	if (this.peek().type === 'IDENT') {
+	var thisElts = null;
+	if (this.peek().type === ':') {
 		// this is going to be a function expr with a this var
-		thisElt = this.next();
+		thisElts = [this.next(), this.expect('IDENT')];
 	}
 	
 	if (this.peek().type === '{') {
 		// this is actually a function expr
 		if (!exprList.checkFormalParams()) {
-			this.error("invalid formal parameters");
+			this.error("invalid formal parameter list before '{'");
 		}
 		elts.push(exprList);
 		elts.push(closeParen);
 		elts.push(this.parseBlock());
-		return new ast.FunctionExpr(elts, thisElt);
+		return new ast.FunctionExpr(elts, thisElts);
 	}
-	else if (thisElt !== null) {
+	else if (thisElts !== null) {
 		// this needed to be a function
 		this.expect('{');
 	}
 	else if (this.peek().type === '->') {
 		// this is an arrow function
 		if (!exprList.checkFormalParams()) {
-			this.error("invalid formal parameters");
+			this.error("invalid formal parameter list before '->'");
 		}
 		elts.push(exprList);
 		elts.push(closeParen);
@@ -721,7 +736,7 @@ Parser.prototype.parseGroupExpr = function() {
 	}
 	else {
 		if (exprList.elts.length !== 1) {
-			this.error("invalid expression");
+			this.error("unexpected " + this.peek().type + " after formal parameter list");
 		}
 		elts.push(exprList.elts[0]);
 		elts.push(closeParen);
@@ -738,13 +753,13 @@ Parser.prototype.parseSimpleArrowFunction = function() {
 };
 
 Parser.prototype.parseExprStatement = function() {
-	var elts = [], thisElt;
+	var elts = [], thisElts;
 	if (this.peek().type === ';') {
 		elts.push(this.next());
 	}
 	else {
 		var expr = this.parseExpr();
-		if (expr.isLabel && this.peek().type === ':') {
+		if (expr.astType === 'IdentExpr' && this.peek().type === ':') {
 			// this is actually a labeled statement
 			elts.push(expr.elts[0]);
 			elts.push(this.next());
@@ -761,18 +776,18 @@ Parser.prototype.parseExprStatement = function() {
 		}
 		
 		// do we have a thisElt?
-		thisElt = null;
-		if (this.peek().type === 'IDENT') {
-			thisElt = this.next();
+		thisElts = null;
+		if (this.peek().type === ':') {
+			thisElts = [this.next(), this.expect('IDENT')];
 		}
 		
 		if (expr.checkFuncSpec && expr.checkFuncSpec() && this.peek().type === '{') {
 			// this is actually a function declaration
 			elts = expr.elts;
 			elts.push(this.parseBlock());
-			return new ast.FunctionStatement(elts, thisElt);
+			return new ast.FunctionStatement(elts, thisElts);
 		}
-		else if (thisElt !== null) {
+		else if (thisElts !== null) {
 			this.expect('{');
 		}
 		

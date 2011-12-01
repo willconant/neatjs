@@ -98,6 +98,7 @@ function Block(elts) {
 	this.elts = elts;
 }
 exports.Block = Block;
+Block.prototype.astType = 'Block';
 
 Block.prototype.declare = function(ctx) {
 	var i;
@@ -123,6 +124,7 @@ function IfStatement(elts) {
 	this.elsePart = elts[6];
 }
 exports.IfStatement = IfStatement;
+IfStatement.prototype.astType = 'IfStatement';
 
 IfStatement.prototype.validate = function(ctx) {
 	ctx = {declared: ctx.declared, program: ctx.program};
@@ -140,6 +142,7 @@ function WhileStatement(elts) {
 	this.block = elts[4];
 }
 exports.WhileStatement = WhileStatement;
+WhileStatement.prototype.astType = 'WhileStatement';
 
 WhileStatement.prototype.validate = function(ctx) {
 	ctx = {declared: ctx.declared, program: ctx.program};
@@ -155,6 +158,7 @@ function ForStatement(elts) {
 	this.postExprs = elts[6];
 }
 exports.ForStatement = ForStatement;
+ForStatement.prototype.astType = 'ForStatement';
 
 ForStatement.prototype.validate = function(ctx) {
 	ctx = {declared: ctx.declared, program: ctx.program};
@@ -168,6 +172,7 @@ function ExprStatement(elts) {
 	this.elts = elts;
 }
 exports.ExprStatement = ExprStatement;
+ExprStatement.prototype.astType = 'ExprStatement';
 
 ExprStatement.prototype.validate = function(ctx) {
 	if (this.elts.length > 1) {
@@ -180,20 +185,22 @@ function LabeledStatement(elts) {
 	this.elts = elts;
 }
 exports.LabeledStatement = LabeledStatement;
+LabeledStatement.prototype.astType = 'LabeledStatement';
 
 LabeledStatement.prototype.validate = function(ctx) {
 	this.elts[2].validate(ctx);
 };
 
 /* FunctionStatement */
-function FunctionStatement(elts, thisElt) {
+function FunctionStatement(elts, thisElts) {
 	this.elts = elts;
 	this.ident = elts[0];
 	this.args = elts[2];
 	this.block = elts[4];
-	this.thisElt = thisElt;
+	this.thisElts = thisElts;
 }
 exports.FunctionStatement = FunctionStatement;
+FunctionStatement.prototype.astType = 'FunctionStatement';
 
 FunctionStatement.prototype.declare = function(ctx) {
 	var identText = this.ident.elts[0].text;
@@ -212,11 +219,11 @@ FunctionStatement.prototype.validate = function(ctx) {
 	}
 	ctx = {declared: newDeclaredVars(ctx.declared), varOk: true, program: ctx.program};
 	this.args.declareArgs(ctx);
-	if (this.thisElt) {
-		if (ctx.declared[this.thisElt.text] === 1) {
-			throw [this.thisElt, "'" + this.thisElt.text + "' is already declared in this scope"];
+	if (this.thisElts) {
+		if (ctx.declared[this.thisElts[1].text] === 1) {
+			throw [this.thisElts[1], "'" + this.thisElts[1].text + "' is already declared in this scope"];
 		}
-		ctx.declared[this.thisElt.text] = 1;
+		ctx.declared[this.thisElts[1].text] = 1;
 	}
 	this.block.declare(ctx);
 	this.block.validate(ctx);
@@ -231,7 +238,7 @@ FunctionStatement.prototype.render = function(ctx) {
 	var errIdent;
 	for (i = 0; i < args.elts.length; i++) {
 		if (i % 2 === 0) {
-			if (args.elts[i].isPassExpr) {
+			if (args.elts[i].astType === 'PassExpr') {
 				hasPassExpr = true;
 				errIdent = args.elts[i].elts[1];
 				out.push('__err');
@@ -247,8 +254,9 @@ FunctionStatement.prototype.render = function(ctx) {
 	
 	out.push(render(this.elts[3]));
 	
-	if (this.thisElt) {
-		out.push(this.thisElt.whitespace);
+	if (this.thisElts) {
+		out.push(this.thisElts[0].whitespace);
+		out.push(this.thisElts[1].whitespace);
 	}
 	
 	out.push(block.elts[0].text);
@@ -262,8 +270,8 @@ FunctionStatement.prototype.render = function(ctx) {
 		}
 	}
 	
-	if (this.thisElt) {
-		out.push(" var " + this.thisElt.text + " = this;");
+	if (this.thisElts) {
+		out.push(" var " + this.thisElts[1].text + " = this;");
 	}
 	
 	out.push(block.elts[0].whitespace);
@@ -279,6 +287,7 @@ function VarStatement(elts) {
 	this.elts = elts;
 }
 exports.VarStatement = VarStatement;
+VarStatement.prototype.astType = 'VarStatement';
 
 VarStatement.prototype.declare = function(ctx) {
 	var exprElts = this.elts[1].elts;
@@ -286,11 +295,11 @@ VarStatement.prototype.declare = function(ctx) {
 	for (i = 0; i < exprElts.length; i++) {
 		if (i % 2 === 0) {
 			expr = exprElts[i];
-			if (expr.isIdent) {
+			if (expr.astType === 'IdentExpr') {
 				ident = expr.elts[0];
 			}
 			else {
-				if (!expr.isBinOp || !expr.elts[1].type === '=' || !expr.elts[0].isIdent) {
+				if (expr.astType !== 'BinaryOpExpr' || expr.elts[0].astType !== 'IdentExpr' || expr.elts[1].type !== '=') {
 					throw [expr.elts[0], "invalid expression in var statement"];
 				}
 				ident = expr.elts[0].elts[0];
@@ -319,6 +328,7 @@ function ReturnStatement(elts) {
 	this.elts = elts;
 }
 exports.ReturnStatement = ReturnStatement;
+ReturnStatement.prototype.astType = 'ReturnStatement';
 
 ReturnStatement.prototype.validate = function(ctx) {
 	if (this.elts.length === 3) {
@@ -332,6 +342,7 @@ function ThrowStatement(elts) {
 	this.elts = elts;
 }
 exports.ThrowStatement = ThrowStatement;
+ThrowStatement.prototype.astType = 'ThrowStatement';
 
 ThrowStatement.prototype.validate = function(ctx) {
 	ctx = {declared: ctx.declared, program: ctx.program};
@@ -343,17 +354,23 @@ function ArgsList(elts) {
 	this.elts = elts;
 }
 exports.ArgsList = ArgsList;
+ArgsList.prototype.astType = 'ArgsList';
 
 /* ExprList */
 function ExprList(elts) {
 	this.elts = elts;
 }
 exports.ExprList = ExprList;
+ExprList.prototype.astType = 'ExprList';
+
 ExprList.prototype.checkFormalParams = function() {
-	var i;
+	var i, astType;
 	for (i = 0; i < this.elts.length; i++) {
-		if (i % 2 === 0 && !this.elts[i].isFormalParam) {
-			return false;
+		if (i % 2 === 0) {
+			astType = this.elts[i].astType;
+			if (astType !== 'IdentExpr' && astType !== 'PassExpr') {
+				return false;
+			}
 		}
 	}
 	return true;
@@ -363,7 +380,7 @@ ExprList.prototype.declareArgs = function(ctx, noPassExpr) {
 	var i, ident;
 	for (i = 0; i < this.elts.length; i++) {
 		if (i % 2 === 0) {
-			if (this.elts[i].isIdent) {
+			if (this.elts[i].astType === 'IdentExpr') {
 				ident = this.elts[i].elts[0];
 				if (ctx.declared[ident.text] === 1) {
 					throw [ident, "'" + ident.text + "' is already declared in this scope"];
@@ -399,6 +416,7 @@ function StringExpr(elts) {
 	this.elts = elts;
 }
 exports.StringExpr = StringExpr;
+StringExpr.prototype.astType = 'StringExpr';
 StringExpr.prototype.validate = function(){};
 
 /* NumberExpr */
@@ -406,6 +424,7 @@ function NumberExpr(elts) {
 	this.elts = elts;
 }
 exports.NumberExpr = NumberExpr;
+NumberExpr.prototype.astType = 'NumberExpr';
 NumberExpr.prototype.validate = function(){};
 
 /* NullExpr */
@@ -413,6 +432,7 @@ function NullExpr(elts) {
 	this.elts = elts;
 }
 exports.NullExpr = NullExpr;
+NullExpr.prototype.astType = 'NullExpr';
 NullExpr.prototype.validate = function(){};
 
 /* TrueFalseExpr */
@@ -420,6 +440,7 @@ function TrueFalseExpr(elts) {
 	this.elts = elts;
 }
 exports.TrueFalseExpr = TrueFalseExpr;
+TrueFalseExpr.prototype.astType = 'TrueFalseExpr';
 TrueFalseExpr.prototype.validate = function(){};
 
 /* IdentExpr */
@@ -427,10 +448,7 @@ function IdentExpr(elts) {
 	this.elts = elts;
 }
 exports.IdentExpr = IdentExpr;
-IdentExpr.prototype.isIdent = true;
-IdentExpr.prototype.isLvalue = true;
-IdentExpr.prototype.isLabel = true;
-IdentExpr.prototype.isFormalParam = true;
+IdentExpr.prototype.astType = 'IdentExpr';
 
 IdentExpr.prototype.validate = function(ctx) {
 	if (!ctx.declared[this.elts[0].text]) {
@@ -443,6 +461,7 @@ function UnaryOpExpr(elts) {
 	this.elts = elts;
 }
 exports.UnaryOpExpr = UnaryOpExpr;
+UnaryOpExpr.prototype.astType = 'UnaryOpExpr';
 
 UnaryOpExpr.prototype.validate = function(ctx) {
 	ctx = {
@@ -457,7 +476,7 @@ function BinaryOpExpr(elts) {
 	this.elts = elts;
 }
 exports.BinaryOpExpr = BinaryOpExpr;
-BinaryOpExpr.prototype.isBinOp = true;
+BinaryOpExpr.prototype.astType = 'BinaryOpExpr';
 
 BinaryOpExpr.prototype.validate = function(ctx) {
 	ctx = {
@@ -487,6 +506,7 @@ function TernaryOpExpr(elts) {
 	this.elts = elts;
 }
 exports.TernaryOpExpr = TernaryOpExpr;
+TernaryOpExpr.prototype.astType = 'TernaryOpExpr';
 
 TernaryOpExpr.prototype.validate = function(ctx) {
 	ctx = {
@@ -506,6 +526,7 @@ function InvokeExpr(elts) {
 	this.args = elts[4];
 }
 exports.InvokeExpr = InvokeExpr;
+InvokeExpr.prototype.astType = 'InvokeExpr';
 
 InvokeExpr.prototype.validate = function(ctx) {
 	ctx = {declared: ctx.declared, program: ctx.program};
@@ -520,6 +541,8 @@ function CallExpr(elts) {
 	this.args = elts[2];
 }
 exports.CallExpr = CallExpr;
+CallExpr.prototype.astType = 'CallExpr';
+
 CallExpr.prototype.checkFuncSpec = function() {
 	return this.args.checkFormalParams();
 };
@@ -537,7 +560,7 @@ function IndexExpr(elts) {
 	this.subExpr = elts[2];
 }
 exports.IndexExpr = IndexExpr;
-IndexExpr.prototype.isLvalue = true;
+IndexExpr.prototype.astType = 'IndexExpr';
 
 IndexExpr.prototype.validate = function(ctx) {
 	ctx = {declared: ctx.declared, program: ctx.program};
@@ -551,11 +574,37 @@ function PropertyExpr(elts) {
 	this.targetExpr = elts[0];
 }
 exports.PropertyExpr = PropertyExpr;
-PropertyExpr.prototype.isLvalue = true;
+PropertyExpr.prototype.astType = 'PropertyExpr';
 
 PropertyExpr.prototype.validate = function(ctx) {
 	ctx = {declared: ctx.declared, program: ctx.program};
 	this.targetExpr.validate(ctx);
+};
+
+/* PrototypePropertyExpr */
+function PrototypePropertyExpr(elts) {
+	this.elts = elts;
+	this.targetExpr = elts[0];
+}
+exports.PrototypePropertyExpr = PrototypePropertyExpr;
+PrototypePropertyExpr.prototype.astType = 'PrototypePropertyExpr';
+
+PrototypePropertyExpr.prototype.validate = function(ctx) {
+	ctx = {declared: ctx.declared, program: ctx.program};
+	this.targetExpr.validate(ctx);
+};
+
+PrototypePropertyExpr.prototype.render = function() {
+	var out = [
+		render(this.elts[0]),
+		'.prototype',
+		this.elts[1].whitespace
+	];
+	if (this.elts.length === 3) {
+		out.push('.');
+		out.push(render(this.elts[2]));
+	}
+	return out.join('');
 };
 
 /* NewExpr */
@@ -565,6 +614,7 @@ function NewExpr(elts) {
 	this.args = elts[3];
 }
 exports.NewExpr = NewExpr;
+NewExpr.prototype.astType = 'NewExpr';
 
 NewExpr.prototype.validate = function(ctx) {
 	ctx = {declared: ctx.declared, program: ctx.program};
@@ -573,22 +623,23 @@ NewExpr.prototype.validate = function(ctx) {
 };
 
 /* FunctionExpr */
-function FunctionExpr(elts, thisElt) {
+function FunctionExpr(elts, thisElts) {
 	this.elts = elts;
 	this.args = elts[1];
 	this.block = elts[3];
-	this.thisElt = thisElt;
+	this.thisElts = thisElts;
 }
 exports.FunctionExpr = FunctionExpr;
+FunctionExpr.prototype.astType = 'FunctionExpr';
 
 FunctionExpr.prototype.validate = function(ctx) {
 	ctx = {declared: newDeclaredVars(ctx.declared), varOk: true, program: ctx.program};
 	this.args.declareArgs(ctx);
-	if (this.thisElt) {
-		if (ctx.declared[this.thisElt.text] === 1) {
-			throw [this.thisElt, "'" + this.thisElt.text + "' is already declared in this scope"];
+	if (this.thisElts) {
+		if (ctx.declared[this.thisElts[1].text] === 1) {
+			throw [this.thisElts[1], "'" + this.thisElts[1].text + "' is already declared in this scope"];
 		}
-		ctx.declared[this.thisElt.text] = 1;
+		ctx.declared[this.thisElts[1].text] = 1;
 	}
 	this.block.declare(ctx);
 	this.block.validate(ctx);
@@ -603,7 +654,7 @@ FunctionExpr.prototype.render = function(ctx) {
 	var errIdent;
 	for (i = 0; i < args.elts.length; i++) {
 		if (i % 2 === 0) {
-			if (args.elts[i].isPassExpr) {
+			if (args.elts[i].astType === 'PassExpr') {
 				hasPassExpr = true;
 				errIdent = args.elts[i].elts[1];
 				out.push('__err');
@@ -619,8 +670,9 @@ FunctionExpr.prototype.render = function(ctx) {
 	
 	out.push(render(this.elts[2]));
 	
-	if (this.thisElt) {
-		out.push(this.thisElt.whitespace);
+	if (this.thisElts) {
+		out.push(this.thisElts[0].whitespace);
+		out.push(this.thisElts[1].whitespace);
 	}
 	
 	out.push(block.elts[0].text);
@@ -634,8 +686,8 @@ FunctionExpr.prototype.render = function(ctx) {
 		}
 	}
 	
-	if (this.thisElt) {
-		out.push(" var " + this.thisElt.text + " = this;");
+	if (this.thisElts) {
+		out.push(" var " + this.thisElts[1].text + " = this;");
 	}
 	
 	out.push(block.elts[0].whitespace);
@@ -653,6 +705,7 @@ function ArrowFunctionExpr(elts) {
 	this.expr = elts[4];
 }
 exports.ArrowFunctionExpr = ArrowFunctionExpr;
+ArrowFunctionExpr.prototype.astType = 'ArrowFunctionExpr';
 
 ArrowFunctionExpr.prototype.validate = function(ctx) {
 	ctx = {declared: newDeclaredVars(ctx.declared), varOk: true, program: ctx.program};
@@ -672,6 +725,7 @@ function SimpleArrowFunctionExpr(elts) {
 	this.expr = elts[1];
 }
 exports.SimpleArrowFunctionExpr = SimpleArrowFunctionExpr;
+SimpleArrowFunctionExpr.prototype.astType = 'SimpleArrowFunctionExpr';
 
 SimpleArrowFunctionExpr.prototype.validate = function(ctx) {
 	ctx = {declared: newDeclaredVars(ctx.declared), varOk: true, program: ctx.program};
@@ -689,6 +743,7 @@ function ArrayExpr(elts) {
 	this.elts = elts;
 }
 exports.ArrayExpr = ArrayExpr;
+ArrayExpr.prototype.astType = 'ArrayExpr';
 
 ArrayExpr.prototype.validate = function(ctx) {
 	this.elts[1].validate({declared: ctx.declared});
@@ -699,6 +754,7 @@ function ObjectExpr(elts) {
 	this.elts = elts;
 }
 exports.ObjectExpr = ObjectExpr;
+ObjectExpr.prototype.astType = 'ObjectExpr';
 
 ObjectExpr.prototype.validate = function(ctx) {
 	ctx = {declared: ctx.declared, program: ctx.program};
@@ -728,6 +784,7 @@ function GroupExpr(elts) {
 	this.elts = elts;
 }
 exports.GroupExpr = GroupExpr;
+GroupExpr.prototype.astType = 'GroupExpr';
 
 GroupExpr.prototype.validate = function(ctx) {
 	this.elts[1].validate(ctx);
@@ -738,14 +795,29 @@ function PassExpr(elts) {
 	this.elts = elts;
 }
 exports.PassExpr = PassExpr;
-PassExpr.prototype.isFormalParam = true;
-PassExpr.prototype.isPassExpr = true;
+PassExpr.prototype.astType = 'PassExpr';
+
+PassExpr.prototype.validate = function(ctx) {
+	throw [this.elts[0], "invalid expression beginning with '@'"]
+};
+
+/* YadaExpr */
+function YadaExpr(elts) {
+	this.elts = elts;
+}
+exports.YadaExpr = YadaExpr;
+YadaExpr.prototype.astType = 'YadaExpr';
+
+YadaExpr.prototype.validate = function(ctx) {
+	throw [this.elts[0], "invalid expression ending with '...'"]
+};
 
 /* IncludePragma */
 function IncludePragma(elts) {
 	this.elts = elts;
 }
 exports.IncludePragma = IncludePragma;
+IncludePragma.prototype.astType = 'IncludePragma';
 
 IncludePragma.prototype.pragma = function(ctx) {
 	var i;
@@ -783,6 +855,7 @@ function DeclarePragma(elts) {
 	this.elts = elts;
 }
 exports.DeclarePragma = DeclarePragma;
+DeclarePragma.prototype.astType = 'DeclarePragma';
 
 DeclarePragma.prototype.pragma = function(ctx) {
 	var i;
