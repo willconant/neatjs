@@ -2,7 +2,7 @@ function filter() {
 	var __ = Array.prototype.filter;
 	if (__) {
 		filter = function(ar, f) {
-			__.call(ar, f);
+			return __.call(ar, f);
 		};
 	}
 	else {

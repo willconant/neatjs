@@ -2,7 +2,7 @@ function each() {
 	var __ = Array.prototype.forEach;
 	if (__) {
 		each = function(ar, f) {
-			__.call(ar, f);
+			return __.call(ar, f);
 		};
 	}
 	else {
