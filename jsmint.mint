@@ -52,6 +52,13 @@ each(process.argv, (arg, i) {
 	}
 });
 
+var errors = [];
+process.on('exit', () {
+	if (errors.length > 0) {
+		console.log(errors.sort().join("\n"));
+	}
+});
+
 if (sourceDirpath || destDirpath) {
 	if (!sourceDirpath || !destDirpath) {
 		console.log('you must use --source-dir and --dest-dir together');
@@ -100,7 +107,7 @@ onReadFile(filepath) {
 	return (@, source) {
 		var result = parser.compile(filepath, source);
 		if (result.error) {
-			console.log(result.error.message);
+			errors.push(result.error.message);
 		}
 		else if (destDirpath) {
 			filepath = (destDirpath + filepath.substr(sourceDirpath.length)).replace(/\.[a-z]+$/, '.js');
