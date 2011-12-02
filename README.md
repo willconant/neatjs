@@ -1,10 +1,9 @@
-# JSMint #
+# NeatJS #
 
-Freshens your JavaScript as it validates!
+NeatJS is a strict dialect of JavaScript with a few carefully chosen tweaks. It compiles into standard JavaScript without dropping your comments or changing any line numbers.
 
-JSMint is a strict dialect of JavaScript with a few carefully chosen tweaks. It compiles into standard JavaScript without dropping your comments or changing any line numbers.
+The guiding principle behind the design of NeatJS is restraint. JavaScript is an adequate language with plenty of features. However, it has a few glaring irritations that are easily remedied. NeatJS attepts to remedy those problems without redesigning the entire language or changing the semmatics. At the same time, it fills the role of traditional code validators like JSHint or JSLint, making sure you don't pollute the global namespace, miss semi-colons, forget to break switch cases, etc.
 
-The guiding principle behind the design of JSMint is restraint! JavaScript is an adequate language with plenty of features. However, it has a few glaring irritations that are easily remedied. JSMint attepts to remedy those problems without redesigning the entire language or changing the semmatics. At the same time, it fills the role of traditional code validators like JSHint or JSLint, making sure you don't pollute the global namespace or misspell variable names.
 
 ## Features ##
 
@@ -95,7 +94,7 @@ Compiles to:
 	var add3 = function (_) { return _ + 3; }
 
 
-#### Better Async Error Handler ####
+#### Better Async Error Handling ####
 
 For asynchronous programming in environments like Node.js, there is a better syntax for error handling.
 
@@ -181,7 +180,7 @@ Compiles to:
 
 ### Better Equality Operators ###
 
-JSMint transforms `==` into `===` and `!=` into `!==` for the obvious reasons.
+NeatJS transforms `==` into `===` and `!=` into `!==` for the obvious reasons.
 
 
 ### Trailing Commas in Array and Object Literals ###
@@ -191,7 +190,7 @@ Hooray!
 
 ### Try/Catch Simplification ###
 
-In async environments, try/catch seldom works the way people expect. JSMint removes the try/catch construct in favor of a simple trycatch() function that normalizes thrown errors to look like other errors in Node.js:
+In async environments, try/catch seldom works the way people expect. NeatJS removes the try/catch construct in favor of a simple trycatch() function that normalizes thrown errors to look like other errors in Node.js:
 
 	trycatch(-> JSON.parse(input), onParsed);
 	
@@ -200,19 +199,19 @@ In async environments, try/catch seldom works the way people expect. JSMint remo
 		// otherwise, err will be null, and json will contain the result of JSON.parse
 	}
 
-See below for more info on JSMint's built-in functions.
+See below for more info on NeatJS's built-in functions.
 
 
 ### Variable Name Checking ###
 
-In JSMint, all variables and functions must be declared. This can be done in the following ways:
+In NeatJS, all variables and functions must be declared. This can be done in the following ways:
 
 - with the `var` keyword
 - with a function declaration
 - with the `#declare` pragma
 - with the `#include` pragma
 
-The `var` keyword and function declarations work just as expected, but JSMint is strict about where they can occur. Both may only occur at the top level of the program or at the top level of a function. You cannot declare a variable or function within a loop or branch.
+The `var` keyword and function declarations work just as expected, but NeatJS is strict about where they can occur. Both may only occur at the top level of the program or at the top level of a function. You cannot declare a variable or function within a loop or branch.
 
 The `#declare` pragma can be used at the top level of your program to specify global variables you intend to use:
 
@@ -224,7 +223,7 @@ The `#include` pragma can be used to statically include built-in functions. (Mor
 
 ### Stricter Syntax ###
 
-Other than that, JSMint is just JavaScript with stricter syntax rules:
+Other than that, NeatJS is just JavaScript with stricter syntax rules:
 
 - no implied semicolons
 - if statements and while statements always require curly-braces
@@ -234,21 +233,21 @@ Other than that, JSMint is just JavaScript with stricter syntax rules:
 
 ### Built-in Functions ###
 
-Some versions of JavaScript are missing a few very critical features, and not all JS environments provide a convenient module system. To remedy this, JSMint proivdes some built-in functions and a pragma for statically including them at the end of your script. For instance:
+Some versions of JavaScript are missing a few very critical features, and not all JS environments provide a convenient module system. To remedy this, NeatJS proivdes some built-in functions and a pragma for statically including them at the end of your script. For instance:
 
 	#include map;
 	var ages = map(people, -> _.age);
 
-In this case, JSMint will append a `map` function to the end of your script.
+In this case, NeatJS will append a `map` function to the end of your script.
 
 You may include more than one function at a time:
 
 	#include map, filter;
 	var agesOfAdults = filter(map(people, -> _.age), -> _ >= 18);
 
-All of JSMint's built-in functions are also avaiable in an NPM module:
+All of NeatJS's built-in functions are also avaiable in an NPM module:
 
-	var trycatch = require('jsmint/builtins').trycatch;
+	var trycatch = require('neatjs/builtins').trycatch;
 	
 
 #### each(array, func) ####
@@ -345,12 +344,8 @@ Calls func. If func succeeds, the result is passed to callback as the second par
 
 ## Justification ##
 
-Anyone building a serious server-side JavaScript project should be using a source validator to avoid horrible things like polluting the global namespace.
-
-Almost every JavaScript programmer agrees that the `function` keyword is a total bummer.
-
-The majority of JavaScript programmers will admit to misusing the `this` keyword inside callbacks and spending precious moments being horribly confused by the outcome.
-
-Some of us have a hard time typing the word "prototype".
-
-About half of Node.js programmers secretly hate typing `if (err) throw err;`
+- You already need a source validator like JSHint or JSLint.
+- The `function` keyword eight characters too long.
+- The `this` keyword sucks in functional programming.
+- It is surprisingly hard to type `prototype`.
+- Including `if (err) throw err;` at the top of every function is an unreasonable amount of boilerplate.

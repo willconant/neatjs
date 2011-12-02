@@ -3,15 +3,15 @@
 var fs = require('fs');
 var parser = require('./parser');
 
-fs.readFile('./jsmint.mint', 'utf8', onReadFile);
+fs.readFile('./neatjs.neat', 'utf8', onReadFile);
 
 function onReadFile(err, source) {
 	if (err) throw err;
-	var result = parser.compile('jsmint.mint', source);
+	var result = parser.compile('neatjs.neat', source);
 	if (result.error) {
 		throw result.error;
 	}
-	fs.writeFile('./jsmint', result.output, 'utf8', onWriteFile);
+	fs.writeFile('./neatjs', result.output, 'utf8', onWriteFile);
 }
 
 function onWriteFile(err) {

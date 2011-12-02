@@ -68,7 +68,7 @@ if (sourceDirpath || destDirpath) {
 }
 else {
 	if (!sourceFilepath) {
-		console.log("Usage:\njsmint somefile.mint\njsmint --source-dir source/dir --dest-dir dest/dir");
+		console.log("Usage:\nneatjs somefile.neat\nneatjs --source-dir source/dir --dest-dir dest/dir");
 		process.exit(1);
 	}
 	fs.readFile(sourceFilepath, 'utf8', onReadFile(sourceFilepath));
@@ -85,7 +85,7 @@ function chompPath(path) {
 
 function onReaddir(dirpath) {
 	return function (__err, filenames) { if (__err) { throw __err; }
-		each(filter(filenames, function (f) { return /\.(jsmint|mint)$/.test(f); }), function (filename) {
+		each(filter(filenames, function (f) { return /\.neat$/.test(f); }), function (filename) {
 			var filepath = dirpath + '/' + filename;
 			fs.stat(filepath, onStats(filepath));
 		});
