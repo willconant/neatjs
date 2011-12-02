@@ -4,7 +4,7 @@ Freshens your JavaScript as it validates!
 
 JSMint is a strict dialect of JavaScript with a few carefully chosen tweaks. It compiles into standard JavaScript without dropping your comments or changing any line numbers.
 
-The translation from JSMint to JavaScript saves you from a non-trivial amount of boilerplate but is ALWAYS easy to understand.
+The guiding principle behind the design of JSHint is restraint! JavaScript is an adequate language with plenty of features. However, it has a few glaring irritations that are easily remedied. JSHint attepts to remedy those problems without redesigning the entire language or changing the semmatics. At the same time, it fills the role of traditional code validators like JSHint or JSLint, making sure you don't pollute the global namespace or misspell variable names.
 
 ## Features ##
 
@@ -26,13 +26,13 @@ Compiles to:
 
 This:
 	
-	Dog.prototype.bark = () {
+	var bark = () {
 		console.log("woof!");
 	};
 
 Compiles to:
 	
-	Dog.prototype.bark = function () {
+	var bark = function () {
 		console.log("woof!");
 	};
 
@@ -43,8 +43,21 @@ Instead, you explicitly choose a name for the this-value in function declaration
 
 This:
 
-	Dog.prototype.careForPuppies = () dog {
+	Dog(name):dog {
+		dog.name = name;
+	}
+	
+Compiles to:
+
+	function Dog(name) { var dog = this;
+		dog.name = name;
+	}
+
+This:
+
+	Dog.prototype.careForPuppies = ():dog {
 		dog.puppies.forEach((puppy) {
+			// the value of dog in this context is clear
 			dog.clean(puppy);
 		});
 	};
@@ -53,6 +66,7 @@ Compiles to:
 
 	Dog.prototype.careForPuppies = function () { var dog = this;
 		dog.puppies.forEach(function (puppy) {
+			// the value of dog in this context is clear
 			dog.clean(puppy);
 		});
 	};
@@ -69,6 +83,8 @@ This:
 Compiles to:
 
 	var adder = function (a, b) { return a + b; }
+	
+Arrow functions without a parameter list always take a single parameter named `_`.
 	
 This:
 
@@ -144,6 +160,25 @@ Compiles to:
 	}
 
 
+### Abbreviated Prototype Access ###
+
+This:
+
+	Dog::name = "Fido";
+
+Compiles to:
+
+	Dog.prototype.name = "Fido";
+
+This:
+
+	Dog:: = foo;
+
+Compiles to:
+
+	Dog.prototype = foo;
+
+
 ### Better Equality Operators ###
 
 JSMint transforms `==` into `===` and `!=` into `!==` for the obvious reasons.
@@ -194,6 +229,7 @@ Other than that, JSMint is just JavaScript with stricter syntax rules:
 - no implied semicolons
 - if statements and while statements always require curly-braces
 - switch cases must break or return
+- bitwise operators are not allowed
 
 
 ### Built-in Functions ###
@@ -314,5 +350,7 @@ Anyone building a serious server-side JavaScript project should be using a sourc
 Almost every JavaScript programmer agrees that the `function` keyword is a total bummer.
 
 The majority of JavaScript programmers will admit to misusing the `this` keyword inside callbacks and spending precious moments being horribly confused by the outcome.
+
+Some of us have a hard time typing the word "prototype".
 
 About half of Node.js programmers secretly hate typing `if (err) throw err;`
