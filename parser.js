@@ -503,8 +503,11 @@ Parser.prototype.parseExpr = function(prec) {
 			this.next();
 			expr = new ast.StringExpr([this.findString('/')]);
 			break;
-		case '@':
+		case '%':
 			expr = this.parsePassExpr();
+			break;
+		case '...':
+			expr = this.parseYadaExpr();
 			break;
 		case '[':
 			expr = this.parseArrayExpr();
@@ -619,15 +622,7 @@ Parser.prototype.parseExpr = function(prec) {
 				}
 				expr = new ast.PrototypePropertyExpr(elts);
 				break;
-			
-			case '...':
-				if (expr.astType !== 'IdentExpr') {
-					this.error("unexpected '...'");
-				}
-				elts = [expr.elts[0], this.next()];
-				expr = new ast.YadaExpr(elts);
-				break;
-			
+						
 			default:
 				break GOBBLE;
 		}
@@ -638,12 +633,20 @@ Parser.prototype.parseExpr = function(prec) {
 
 Parser.prototype.parsePassExpr = function() {
 	var elts = [
-		this.expect('@')
+		this.expect('%')
 	];
 	if (this.peek().type === 'IDENT') {
 		elts.push(this.next());
 	}
 	return new ast.PassExpr(elts);
+};
+
+Parser.prototype.parseYadaExpr = function() {
+	var elts = [
+		this.expect('...'),
+		this.expect('IDENT')
+	];
+	return new ast.YadaExpr(elts);
 };
 
 Parser.prototype.parseArrayExpr = function() {
@@ -717,7 +720,7 @@ Parser.prototype.parseGroupExpr = function() {
 	var closeParen = this.expect(')');
 	
 	var thisElts = null;
-	if (this.peek().type === ':') {
+	if (this.peek().type === '@') {
 		// this is going to be a function expr with a this var
 		thisElts = [this.next(), this.expect('IDENT')];
 	}
@@ -790,7 +793,7 @@ Parser.prototype.parseExprStatement = function() {
 		
 		// do we have a thisElt?
 		thisElts = null;
-		if (this.peek().type === ':') {
+		if (this.peek().type === '@') {
 			thisElts = [this.next(), this.expect('IDENT')];
 		}
 		

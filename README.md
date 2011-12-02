@@ -42,7 +42,7 @@ Instead, you explicitly choose a name for the this-value in function declaration
 
 This:
 
-	Dog(name):dog {
+	Dog(name)@dog {
 		dog.name = name;
 	}
 	
@@ -54,7 +54,7 @@ Compiles to:
 
 This:
 
-	Dog.prototype.careForPuppies = ():dog {
+	Dog.prototype.careForPuppies = ()@dog {
 		dog.puppies.forEach((puppy) {
 			// the value of dog in this context is clear
 			dog.clean(puppy);
@@ -101,7 +101,7 @@ For asynchronous programming in environments like Node.js, there is a better syn
 This:
 
 	fs.readFile('filename', onReadFile);
-	onReadFile(@, text) {
+	onReadFile(%, text) {
 		console.log(text);
 	}
 
@@ -117,7 +117,7 @@ This:
 	readFileOrDir(filename, callback) {
 		fs.stat(filename, onStat);
 		
-		onStat(@callback, stats) {
+		onStat(%callback, stats) {
 			if (stats.isDirectory()) {
 				fs.readdir(filename, onReaddir);
 			}
@@ -126,11 +126,11 @@ This:
 			}
 		}
 		
-		onReaddir(@callback, filenames) {
+		onReaddir(%callback, filenames) {
 			callback(null, 'directory', filenames);
 		}
 		
-		onReadFile(@callback, buffer) {
+		onReadFile(%callback, buffer) {
 			callback(null, 'file', buffer);
 		}
 	}
@@ -345,7 +345,7 @@ Calls func. If func succeeds, the result is passed to callback as the second par
 ## Justification ##
 
 - You already need a source validator like JSHint or JSLint.
-- The `function` keyword eight characters too long.
+- The `function` keyword is eight characters too long.
 - The `this` keyword sucks in functional programming.
 - It is surprisingly hard to type `prototype`.
 - Including `if (err) throw err;` at the top of every function is an unreasonable amount of boilerplate.

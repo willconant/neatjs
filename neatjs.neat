@@ -84,7 +84,7 @@ chompPath(path) {
 }
 
 onReaddir(dirpath) {
-	return (@, filenames) {
+	return (%, filenames) {
 		each(filter(filenames, (f) -> /\.neat$/.test(f)), (filename) {
 			var filepath = dirpath + '/' + filename;
 			fs.stat(filepath, onStats(filepath));
@@ -93,7 +93,7 @@ onReaddir(dirpath) {
 }
 
 onStats(filepath) {
-	return (@, stats) {
+	return (%, stats) {
 		if (stats.isDirectory()) {
 			fs.readdir(filepath, onReaddir(filepath));
 		}
@@ -104,7 +104,7 @@ onStats(filepath) {
 }
 
 onReadFile(filepath) {
-	return (@, source) {
+	return (%, source) {
 		var result = parser.compile(filepath, source);
 		if (result.error) {
 			errors.push(result.error.message);
@@ -120,7 +120,7 @@ onReadFile(filepath) {
 }
 
 onWriteFile(filepath) {
-	return (@) {
+	return (%) {
 		// console.log("wrote", filepath);
 	};
 }
