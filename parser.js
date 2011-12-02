@@ -66,53 +66,53 @@ var tokens = [
 	{ eq: '@'                                        },	
 	{ eq: '?'                                        },	
 	
-	{ re: /^break\b/                                 },
-	{ re: /^case\b/                                  },
-	{ re: /^catch\b/                                 },
-	{ re: /^continue\b/                              },
-	{ re: /^debugger\b/                              },
-	{ re: /^default\b/                               },
-	{ re: /^delete\b/                                },
-	{ re: /^do\b/                                    },
-	{ re: /^else\b/                                  },
-	{ re: /^finally\b/                               },
-	{ re: /^for\b/                                   },
-	{ re: /^function\b/                              },
-	{ re: /^if\b/                                    },
-	{ re: /^in\b/                                    },
-	{ re: /^instanceof\b/                            },
-	{ re: /^new\b/                                   },
-	{ re: /^return\b/                                },
-	{ re: /^switch\b/                                },
-	{ re: /^this\b/                                  },
-	{ re: /^throw\b/                                 },
-	{ re: /^try\b/                                   },
-	{ re: /^typeof\b/                                },
-	{ re: /^var\b/                                   },
-	{ re: /^void\b/                                  },
-	{ re: /^while\b/                                 },
-	{ re: /^with\b/                                  },
+	{ re: /^break\b/              , isWord: true     },
+	{ re: /^case\b/               , isWord: true     },
+	{ re: /^catch\b/              , isWord: true     },
+	{ re: /^continue\b/           , isWord: true     },
+	{ re: /^debugger\b/           , isWord: true     },
+	{ re: /^default\b/            , isWord: true     },
+	{ re: /^delete\b/             , isWord: true     },
+	{ re: /^do\b/                 , isWord: true     },
+	{ re: /^else\b/               , isWord: true     },
+	{ re: /^finally\b/            , isWord: true     },
+	{ re: /^for\b/                , isWord: true     },
+	{ re: /^function\b/           , isWord: true     },
+	{ re: /^if\b/                 , isWord: true     },
+	{ re: /^in\b/                 , isWord: true     },
+	{ re: /^instanceof\b/         , isWord: true     },
+	{ re: /^new\b/                , isWord: true     },
+	{ re: /^return\b/             , isWord: true     },
+	{ re: /^switch\b/             , isWord: true     },
+	{ re: /^this\b/               , isWord: true     },
+	{ re: /^throw\b/              , isWord: true     },
+	{ re: /^try\b/                , isWord: true     },
+	{ re: /^typeof\b/             , isWord: true     },
+	{ re: /^var\b/                , isWord: true     },
+	{ re: /^void\b/               , isWord: true     },
+	{ re: /^while\b/              , isWord: true     },
+	{ re: /^with\b/               , isWord: true     },
 	
-	{ re: /^null\b/                                  },
-	{ re: /^true\b/                                  },
-	{ re: /^false\b/                                 },
+	{ re: /^null\b/               , isWord: true     },
+	{ re: /^true\b/               , isWord: true     },
+	{ re: /^false\b/              , isWord: true     },
 	
-	{ re: /^class\b/                                 },
-	{ re: /^enum\b/                                  },
-	{ re: /^export\b/                                },
-	{ re: /^extend\b/                                },
-	{ re: /^import\b/                                },
-	{ re: /^super\b/                                 },
+	{ re: /^class\b/              , isWord: true     },
+	{ re: /^enum\b/               , isWord: true     },
+	{ re: /^export\b/             , isWord: true     },
+	{ re: /^extend\b/             , isWord: true     },
+	{ re: /^import\b/             , isWord: true     },
+	{ re: /^super\b/              , isWord: true     },
 	
-	{ re: /^implements\b/                            },
-	{ re: /^interface\b/                             },
-	{ re: /^let\b/                                   },
-	{ re: /^package\b/                               },
-	{ re: /^private\b/                               },
-	{ re: /^protected\b/                             },
-	{ re: /^public\b/                                },
-	{ re: /^static\b/                                },
-	{ re: /^yield\b/                                 },
+	{ re: /^implements\b/         , isWord: true     },
+	{ re: /^interface\b/          , isWord: true     },
+	{ re: /^let\b/                , isWord: true     },
+	{ re: /^package\b/            , isWord: true     },
+	{ re: /^private\b/            , isWord: true     },
+	{ re: /^protected\b/          , isWord: true     },
+	{ re: /^public\b/             , isWord: true     },
+	{ re: /^static\b/             , isWord: true     },
+	{ re: /^yield\b/              , isWord: true     },
 	
 	{ re: /^[a-zA-Z$_][a-zA-Z0-9$_]*/, type: 'IDENT' },
 	{ re: /^#include\b/                              },
@@ -180,7 +180,7 @@ Parser.prototype.findToken = function() {
 		else if (t.re) {
 			m = t.re.exec(this.text);
 			if (m) {
-				result = { text: m[0], type: m[0], loc: this.loc };
+				result = { text: m[0], type: m[0], loc: this.loc, isWord: t.isWord };
 			}
 		}
 		
@@ -234,22 +234,7 @@ Parser.prototype.next = function() {
 		result.whitespace = this.findWhitespace();
 	}
 	this.lastToken = result;
-	
-	// check for the reserved keywords
-	switch (result.type) {
-	case 'function':
-	case 'this':
-	case 'yield':
-	case 'try':
-	case 'catch':
-	case 'finally':
-		this.error("'" + result.type + "' is a reserved keyword");
 		
-	case '===':
-	case '!==':
-		this.error("use '" + result.type.substr(0, 2) + "' instead of '" + result.type + "'");
-	}
-	
 	return result;
 };
 
@@ -283,6 +268,14 @@ Parser.prototype.expect = function(type) {
 	return t;
 };
 
+Parser.prototype.expectIdentOrWord = function() {
+	var t = this.next();
+	if (t.type !== 'IDENT' && !t.isWord) {
+		this.error("expected word instead of '" + (t.text || t.type) + "'");
+	}
+	return t;
+};
+
 Parser.prototype.parseStatements = function() {
 	var statements = [];
 	while (this.peek().type !== 'EOF') {
@@ -303,6 +296,15 @@ Parser.prototype.parseStatement = function() {
 		case 'var':      return this.parseVar();
 		case '#include': return this.parseIncludePragma();
 		case '#declare': return this.parseDeclarePragma();
+		
+		case 'function':
+			this.error("the 'function' keyword is not required for defining functions");
+			break;
+			
+		case 'try':
+			this.error("try/catch blocks are not supported. Use the built-in trycatch() function");
+			break;
+			
 		default:         return this.parseExprStatement();
 	}
 };
@@ -527,11 +529,22 @@ Parser.prototype.parseExpr = function(prec) {
 			expr= this.parseSimpleArrowFunction();
 			break;
 		default:
-			this.error("invalid expression");
+			if (this.peek().isWord) {
+				this.error("'" + this.peek().type + "' is a reserved word");
+			}
+			else {
+				this.error("invalid expression starting with '" + this.peek().type + "'");
+			}
 	}
 	
 	GOBBLE: while (true) {
 		switch (this.peek().type) {
+			case '===':
+				this.error("use '==' instead of '==='");
+				break;
+			case '!==':
+				this.error("use '!=' instead of '!=='");
+				break;
 			case '+':
 			case '-':
 			case '*':
@@ -577,7 +590,7 @@ Parser.prototype.parseExpr = function(prec) {
 				}
 				break;
 			case '.':
-				elts = [expr, this.next(), this.expect('IDENT')];
+				elts = [expr, this.next(), this.expectIdentOrWord()];
 				if (this.peek().type === '(') {
 					elts.push(this.next());
 					elts.push(this.parseExprList());
@@ -601,7 +614,7 @@ Parser.prototype.parseExpr = function(prec) {
 			
 			case '::':
 				elts = [expr, this.next()];
-				if (this.peek().type === 'IDENT') {
+				if (this.peek().type === 'IDENT' || this.peek().isWord) {
 					elts.push(this.next());
 				}
 				expr = new ast.PrototypePropertyExpr(elts);
@@ -650,7 +663,7 @@ Parser.prototype.parseObjectExpr = function() {
 		if (this.peek().type === '}') {
 			break;
 		}
-		else if (this.peek().type === 'IDENT') {
+		else if (this.peek().type === 'IDENT' || this.peek().isWord) {
 			elts.push(this.next());
 		}
 		else if (this.peek().type === '"') {
@@ -684,7 +697,7 @@ Parser.prototype.parseNewExpr = function() {
 	];
 	while (true) {
 		if (this.peek().type === '.') {
-			elts[1] = new ast.PropertyExpr([elts[1], this.next(), this.expect('IDENT')]);
+			elts[1] = new ast.PropertyExpr([elts[1], this.next(), this.expectIdentOrWord()]);
 		}
 		else {
 			break;
