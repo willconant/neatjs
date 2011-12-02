@@ -4,7 +4,7 @@ Freshens your JavaScript as it validates!
 
 JSMint is a strict dialect of JavaScript with a few carefully chosen tweaks. It compiles into standard JavaScript without dropping your comments or changing any line numbers.
 
-The guiding principle behind the design of JSHint is restraint! JavaScript is an adequate language with plenty of features. However, it has a few glaring irritations that are easily remedied. JSHint attepts to remedy those problems without redesigning the entire language or changing the semmatics. At the same time, it fills the role of traditional code validators like JSHint or JSLint, making sure you don't pollute the global namespace or misspell variable names.
+The guiding principle behind the design of JSMint is restraint! JavaScript is an adequate language with plenty of features. However, it has a few glaring irritations that are easily remedied. JSMint attepts to remedy those problems without redesigning the entire language or changing the semmatics. At the same time, it fills the role of traditional code validators like JSHint or JSLint, making sure you don't pollute the global namespace or misspell variable names.
 
 ## Features ##
 
