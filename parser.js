@@ -147,6 +147,14 @@ function Parser(filename, text) {
 
 Parser.prototype.findString = function(quote) {
 	var len = 0, result;
+	
+	// if a string literal starts with whitespace, it will have been gobbled
+	// up by the last call to findWhitespace
+	if (this.lastToken.whitespace.length > 0) {
+		this.text = this.lastToken.whitespace + this.text;
+		this.loc -= this.lastToken.whitespace.length;
+	}
+	
 	while (true) {
 		if (len >= this.text.length) {
 			this.error("runaway string literal");
@@ -362,6 +370,9 @@ Parser.prototype.parseBreak = function() {
 	var elts = [
 		this.expect('break')
 	];
+	if (containsLineTerminator(elts[0].whitespace)) {
+		this.error("illegal newline after break keyword");
+	}
 	if (this.peek().type === 'IDENT') {
 		elts.push(this.next());
 	}
@@ -373,6 +384,9 @@ Parser.prototype.parseContinue = function() {
 	var elts = [
 		this.expect('continue')
 	];
+	if (containsLineTerminator(elts[0].whitespace)) {
+		this.error("illegal newline after continue keyword");
+	}
 	if (this.peek().type === 'IDENT') {
 		elts.push(this.next());
 	}
@@ -384,6 +398,9 @@ Parser.prototype.parseReturn = function() {
 	var elts = [
 		this.expect('return')
 	];
+	if (containsLineTerminator(elts[0].whitespace)) {
+		this.error("illegal newline after return keyword");
+	}
 	if (this.peek().type === ';') {
 		elts.push(this.next());
 	}
@@ -397,9 +414,12 @@ Parser.prototype.parseReturn = function() {
 Parser.prototype.parseThrow = function() {
 	var elts = [
 		this.expect('throw'),
-		this.parseExpr(),
-		this.expect(';')
 	];
+	if (containsLineTerminator(elts[0].whitespace)) {
+		this.error("illegal newline after throw keyword");
+	}
+	elts.push(this.parseExpr());
+	elts.push(this.expect(';'))
 	return new ast.ThrowStatement(elts);
 };
 
@@ -876,3 +896,7 @@ Parser.prototype.error = function(msg, loc) {
 	throw new Error(this.filename + ", line " + line +  ": " + msg);
 	// throw new Error(msg + " in " + this.filename + " at line " + line + ", char " + char + " (byte " + loc + ")");
 };
+
+function containsLineTerminator(str) {
+	return /[\r\n\u2028\u2029]/.test(str);
+}
