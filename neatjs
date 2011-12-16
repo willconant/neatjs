@@ -27,10 +27,13 @@
 var fs = require('fs');
 var parser = require('./parser');
 
-var lastSwitch = null, sourceDirpath, destDirpath, sourceFilepath;
+var lastSwitch = null, sourceDirpath, destDirpath, sourceFilepath, noOutput;
 each(process.argv, function (arg, i) {
 	if (i < 2) { return; }
-	if (arg.charAt(0) === '-') {
+	if (arg === '--no-output') {
+		noOutput = true;
+	}
+	else if (arg.charAt(0) === '-') {
 		lastSwitch = arg;
 	}
 	else {
@@ -56,15 +59,20 @@ var errors = [];
 process.on('exit', function () {
 	if (errors.length > 0) {
 		console.log(errors.sort().join("\n"));
+		process.reallyExit(1);
 	}
 });
 
-if (sourceDirpath || destDirpath) {
-	if (!sourceDirpath || !destDirpath) {
-		console.log('you must use --source-dir and --dest-dir together');
+if (sourceDirpath) {
+	if (!destDirpath && !noOutput) {
+		console.log('--source-dir requires --dest-dir or --no-output');
 		process.exit(1);
 	}
 	fs.readdir(sourceDirpath, onReaddir(sourceDirpath));
+}
+else if (destDirpath) {
+	console.log('--dest-dir requires --source-dir');
+	process.exit(1);
 }
 else {
 	if (!sourceFilepath) {
@@ -109,11 +117,11 @@ function onReadFile(filepath) {
 		if (result.error) {
 			errors.push(result.error.message);
 		}
-		else if (destDirpath) {
+		else if (destDirpath && !noOutput) {
 			filepath = (destDirpath + filepath.substr(sourceDirpath.length)).replace(/\.[a-z]+$/, '.js');
 			fs.writeFile(filepath, result.output, 'utf8', onWriteFile(filepath));
 		}
-		else {
+		else if (!noOutput) {
 			process.stdout.write(result.output);
 		}
 	};
