@@ -25,7 +25,7 @@
 #declare require, process, console;
 
 var fs = require('fs');
-var parser = require('./parser');
+var compile = require('./compiler').compile;
 
 var lastSwitch = null, sourceDirpath, destDirpath, sourceFilepath, noOutput;
 each(process.argv, (arg, i) {
@@ -113,7 +113,7 @@ onStats(filepath) {
 
 onReadFile(filepath) {
 	return (%, source) {
-		var result = parser.compile(filepath, source);
+		var result = compile(filepath, source);
 		if (result.error) {
 			errors.push(result.error.message);
 		}

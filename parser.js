@@ -126,17 +126,6 @@ var whitespace = [
 	/^#!.+/
 ];
 
-exports.compile = function(filename, text) {
-	var program;
-	try {
-		program = (new Parser(filename, text)).parse();
-	}
-	catch (err) {
-		return {error: err};
-	}
-	return {ok: true, output: program.render()};
-}
-
 function Parser(filename, text) {
 	this.filename = filename;
 	this.original = text;
@@ -145,8 +134,10 @@ function Parser(filename, text) {
 	this.peeked = null;
 }
 
+module.exports = Parser;
+
 Parser.prototype.findString = function(quote) {
-	var len = 0, result;
+	var len = 0, result, flagre;
 	
 	// if a string literal starts with whitespace, it will have been gobbled
 	// up by the last call to findWhitespace
@@ -170,6 +161,18 @@ Parser.prototype.findString = function(quote) {
 			len += 1;
 		}
 	}
+	
+	// grab regexp flags
+	if (quote === '/') {
+		flagre = /[gimy]/;
+		while (true) {
+			if (len >= this.text.length || !flagre.test(this.text.charAt(len))) {
+				break;
+			}
+			len += 1;
+		}
+	}
+	
 	result = { type: 'STRING', text: quote + this.text.substr(0, len), loc: this.loc-1 };
 	this.text = this.text.substr(len);
 	this.loc += len;

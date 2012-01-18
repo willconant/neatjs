@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 
 var fs = require('fs');
-var parser = require('./parser');
+var compile = require('./compiler').compile;
 
 fs.readFile('./neatjs.neat', 'utf8', onReadFile);
 
 function onReadFile(err, source) {
 	if (err) throw err;
-	var result = parser.compile('neatjs.neat', source);
+	var result = compile('neatjs.neat', source);
 	if (result.error) {
 		throw result.error;
 	}
