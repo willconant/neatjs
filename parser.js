@@ -868,8 +868,19 @@ Parser.prototype.parseDeclarePragma = function() {
 	var elts = [
 		this.expect('#declare')
 	];
+	var isTag = false;
+	var ident;
 	while (true) {
-		elts.push(this.expect('IDENT'));
+		if (this.peek().type === ':') {
+			this.next();
+			isTag = true;
+		}
+		ident = this.expect('IDENT');
+		if (isTag) {
+			ident.text = ':' + ident.text;
+			isTag = false;
+		}
+		elts.push(ident);
 		if (this.peek().type === ',') {
 			elts.push(this.next());
 		}

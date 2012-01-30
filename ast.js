@@ -25,7 +25,7 @@ function newDeclaredVars(v) {
 	var v2 = {};
 	var key;
 	for (key in v) {
-		if (v.hasOwnProperty(key)) {
+		if (hasOwnProperty.call(v, key)) {
 			v2[key] = 2;
 		}
 	}
@@ -86,7 +86,7 @@ Program.prototype.render = function() {
 	];
 	var k;
 	for (k in this.included) {
-		if (this.included.hasOwnProperty(k)) {
+		if (hasOwnProperty.call(this.included, k)) {
 			out.push(builtins[k]);
 		}
 	}
@@ -368,7 +368,7 @@ ExprList.prototype.checkFormalParams = function() {
 	for (i = 0; i < this.elts.length; i++) {
 		if (i % 2 === 0) {
 			astType = this.elts[i].astType;
-			if (astType !== 'IdentExpr' && astType !== 'PassExpr') {
+			if (astType !== 'IdentExpr' && astType !== 'PassExpr' && astType !== 'YadaExpr') {
 				return false;
 			}
 		}
@@ -858,10 +858,22 @@ exports.DeclarePragma = DeclarePragma;
 DeclarePragma.prototype.astType = 'DeclarePragma';
 
 DeclarePragma.prototype.pragma = function(ctx) {
-	var i;
+	var i, j, text, tags;
 	for (i = 0; i < this.elts.length; i++) {
 		if (i % 2 === 1) {
-			ctx.declared[this.elts[i].text] = 1;
+			text = this.elts[i].text;
+			if (text.charAt(0) === ':') {
+				tags = declareTags[text];
+				if (!tags) {
+					throw [this.elts[i], "invalid declaration group '" + text + "'"];
+				}
+				for (j = 0; j < tags.length; j++) {
+					ctx.declared[tags[j]] = 1;
+				}
+			}
+			else {
+				ctx.declared[text] = 1;
+			}
 		}
 	}
 };
@@ -873,3 +885,182 @@ DeclarePragma.prototype.validate = function(ctx) {
 };
 
 DeclarePragma.prototype.render = IncludePragma.prototype.render;
+
+var declareTags = {};
+
+declareTags[':standard'] = [
+	'arguments',
+	'Array',
+    'Boolean',
+    'Date',
+    'decodeURI',
+    'decodeURIComponent',
+    'encodeURI',
+    'encodeURIComponent',
+    'Error',
+    'eval',
+    'EvalError',
+    'Function',
+    'hasOwnProperty',
+    'isFinite',
+    'isNaN',
+    'JSON',
+    'Math',
+    'Number',
+    'Object',
+    'parseInt',
+    'parseFloat',
+    'RangeError',
+    'ReferenceError',
+    'RegExp',
+    'String',
+    'SyntaxError',
+    'TypeError',
+    'URIError'
+];
+
+declareTags[':node'] = declareTags[':standard'].concat(
+	'__filename',
+    '__dirname',
+    'Buffer',
+    'console',
+    'exports',
+    'GLOBAL',
+    'global',
+    'module',
+    'process',
+    'require',
+    'setTimeout',
+    'clearTimeout',
+    'setInterval',
+    'clearInterval'
+);
+
+declareTags[':browser'] = declareTags[':standard'].concat(
+	'ArrayBuffer',
+    'ArrayBufferView',
+    'Audio',
+    'addEventListener',
+    'applicationCache',
+    'blur',
+    'clearInterval',
+    'clearTimeout',
+    'close',
+    'closed',
+    'DataView',
+    'defaultStatus',
+    'document',
+    'event',
+    'FileReader',
+    'Float32Array',
+    'Float64Array',
+    'FormData',
+    'focus',
+    'frames',
+    'getComputedStyle',
+    'HTMLElement',
+    'HTMLAnchorElement',
+    'HTMLBaseElement',
+    'HTMLBlockquoteElement',
+    'HTMLBodyElement',
+    'HTMLBRElement',
+    'HTMLButtonElement',
+    'HTMLCanvasElement',
+    'HTMLDirectoryElement',
+    'HTMLDivElement',
+    'HTMLDListElement',
+    'HTMLFieldSetElement',
+    'HTMLFontElement',
+    'HTMLFormElement',
+    'HTMLFrameElement',
+    'HTMLFrameSetElement',
+    'HTMLHeadElement',
+    'HTMLHeadingElement',
+    'HTMLHRElement',
+    'HTMLHtmlElement',
+    'HTMLIFrameElement',
+    'HTMLImageElement',
+    'HTMLInputElement',
+    'HTMLIsIndexElement',
+    'HTMLLabelElement',
+    'HTMLLayerElement',
+    'HTMLLegendElement',
+    'HTMLLIElement',
+    'HTMLLinkElement',
+    'HTMLMapElement',
+    'HTMLMenuElement',
+    'HTMLMetaElement',
+    'HTMLModElement',
+    'HTMLObjectElement',
+    'HTMLOListElement',
+    'HTMLOptGroupElement',
+    'HTMLOptionElement',
+    'HTMLParagraphElement',
+    'HTMLParamElement',
+    'HTMLPreElement',
+    'HTMLQuoteElement',
+    'HTMLScriptElement',
+    'HTMLSelectElement',
+    'HTMLStyleElement',
+    'HTMLTableCaptionElement',
+    'HTMLTableCellElement',
+    'HTMLTableColElement',
+    'HTMLTableElement',
+    'HTMLTableRowElement',
+    'HTMLTableSectionElement',
+    'HTMLTextAreaElement',
+    'HTMLTitleElement',
+    'HTMLUListElement',
+    'HTMLVideoElement',
+    'history',
+    'Int16Array',
+    'Int32Array',
+    'Int8Array',
+    'Image',
+    'length',
+    'localStorage',
+    'location',
+    'moveBy',
+    'moveTo',
+    'name',
+    'navigator',
+    'onbeforeunload',
+    'onblur',
+    'onerror',
+    'onfocus',
+    'onload',
+    'onresize',
+    'onunload',
+    'open',
+    'openDatabase',
+    'opener',
+    'Option',
+    'parent',
+    'print',
+    'removeEventListener',
+    'resizeBy',
+    'resizeTo',
+    'screen',
+    'scroll',
+    'scrollBy',
+    'scrollTo',
+    'sessionStorage',
+    'setInterval',
+    'setTimeout',
+    'SharedWorker',
+    'status',
+    'top',
+    'Uint16Array',
+    'Uint32Array',
+    'Uint8Array',
+    'WebSocket',
+    'window',
+    'Worker',
+    'XMLHttpRequest',
+    'XPathEvaluator',
+    'XPathException',
+    'XPathExpression',
+    'XPathNamespace',
+    'XPathNSResolver',
+    'XPathResult'
+);
