@@ -194,16 +194,16 @@ LabeledStatement.prototype.validate = function(ctx) {
 /* FunctionStatement */
 function FunctionStatement(elts, thisElts) {
 	this.elts = elts;
-	this.ident = elts[0];
-	this.args = elts[2];
-	this.block = elts[4];
+	this.ident = elts[1];
+	this.args = elts[3];
+	this.block = elts[5];
 	this.thisElts = thisElts;
 }
 exports.FunctionStatement = FunctionStatement;
 FunctionStatement.prototype.astType = 'FunctionStatement';
 
 FunctionStatement.prototype.declare = function(ctx) {
-	var identText = this.ident.elts[0].text;
+	var identText = this.ident.text;
 	if (ctx.declared[identText] === 1) {
 		// already declared
 		throw [this.ident, "'" + identText + "' is already declared in this scope"];
@@ -230,18 +230,28 @@ FunctionStatement.prototype.validate = function(ctx) {
 };
 
 FunctionStatement.prototype.render = function(ctx) {
-	var out = ['function ', render(this.elts[0]), render(this.elts[1])];
+	var out = [render(this.elts[0]), render(this.elts[1]), render(this.elts[2])];
 	var i;
 	var args = this.args;
 	var block = this.block;
 	var hasPassExpr = false;
 	var errIdent;
+	var hasYadaExpr = false;
+	var yadaIdent;
+	var yadaIndex;
 	for (i = 0; i < args.elts.length; i++) {
 		if (i % 2 === 0) {
 			if (args.elts[i].astType === 'PassExpr') {
 				hasPassExpr = true;
 				errIdent = args.elts[i].elts[1];
 				out.push('__err');
+			}
+			else if (args.elts[i].astType === 'YadaExpr') {
+				hasYadaExpr = true;
+				yadaIdent = args.elts[i].elts[1];
+				yadaIndex = i / 2;
+				out.push(args.elts[i].elts[0].whitespace);
+				out.push(render(args.elts[i].elts[1]));
 			}
 			else {
 				out.push(render(args.elts[i]));
@@ -252,7 +262,7 @@ FunctionStatement.prototype.render = function(ctx) {
 		}
 	}
 	
-	out.push(render(this.elts[3]));
+	out.push(render(this.elts[4]));
 	
 	if (this.thisElts) {
 		out.push(this.thisElts[0].whitespace);
@@ -272,6 +282,10 @@ FunctionStatement.prototype.render = function(ctx) {
 	
 	if (this.thisElts) {
 		out.push(" var " + this.thisElts[1].text + " = this;");
+	}
+	
+	if (hasYadaExpr) {
+		out.push(" " + yadaIdent.text + " = [].slice.call(arguments, " + yadaIndex + ");");
 	}
 	
 	out.push(block.elts[0].whitespace);
@@ -388,7 +402,14 @@ ExprList.prototype.declareArgs = function(ctx, noPassExpr) {
 				ctx.declared[ident.text] = 1;
 			}
 			else if (noPassExpr) {
-				throw [this.elts[i], "arrow functions connot have error passing params"];
+				throw [this.elts[i], "arrow functions connot have @ or ... params"];
+			}
+			else if (this.elts[i].astType === 'YadaExpr') {
+				ident = this.elts[i].elts[1];
+				if (ctx.declared[ident.text] === 1) {
+					throw [ident, "'" + ident.text + "' is already declared in this scope"];
+				}
+				ctx.declared[ident.text] = 1;
 			}
 			else if (this.elts[i].elts[1]) {
 				ident = this.elts[i].elts[1];
@@ -543,10 +564,6 @@ function CallExpr(elts) {
 exports.CallExpr = CallExpr;
 CallExpr.prototype.astType = 'CallExpr';
 
-CallExpr.prototype.checkFuncSpec = function() {
-	return this.args.checkFormalParams();
-};
-
 CallExpr.prototype.validate = function(ctx) {
 	ctx = {declared: ctx.declared, program: ctx.program};
 	this.targetExpr.validate(ctx);
@@ -625,8 +642,8 @@ NewExpr.prototype.validate = function(ctx) {
 /* FunctionExpr */
 function FunctionExpr(elts, thisElts) {
 	this.elts = elts;
-	this.args = elts[1];
-	this.block = elts[3];
+	this.args = elts[2];
+	this.block = elts[4];
 	this.thisElts = thisElts;
 }
 exports.FunctionExpr = FunctionExpr;
@@ -646,18 +663,28 @@ FunctionExpr.prototype.validate = function(ctx) {
 };
 
 FunctionExpr.prototype.render = function(ctx) {
-	var out = ['function ', render(this.elts[0])];
+	var out = [render(this.elts[0]), render(this.elts[1])];
 	var i;
 	var args = this.args;
 	var block = this.block;
 	var hasPassExpr = false;
 	var errIdent;
+	var hasYadaExpr = false;
+	var yadaIdent;
+	var yadaIndex;
 	for (i = 0; i < args.elts.length; i++) {
 		if (i % 2 === 0) {
 			if (args.elts[i].astType === 'PassExpr') {
 				hasPassExpr = true;
 				errIdent = args.elts[i].elts[1];
 				out.push('__err');
+			}
+			else if (args.elts[i].astType === 'YadaExpr') {
+				hasYadaExpr = true;
+				yadaIdent = args.elts[i].elts[1];
+				yadaIndex = i / 2;
+				out.push(args.elts[i].elts[0].whitespace);
+				out.push(render(args.elts[i].elts[1]));
 			}
 			else {
 				out.push(render(args.elts[i]));
@@ -668,7 +695,7 @@ FunctionExpr.prototype.render = function(ctx) {
 		}
 	}
 	
-	out.push(render(this.elts[2]));
+	out.push(render(this.elts[3]));
 	
 	if (this.thisElts) {
 		out.push(this.thisElts[0].whitespace);
@@ -690,6 +717,10 @@ FunctionExpr.prototype.render = function(ctx) {
 		out.push(" var " + this.thisElts[1].text + " = this;");
 	}
 	
+	if (hasYadaExpr) {
+		out.push(" " + yadaIdent.text + " = [].slice.call(arguments, " + yadaIndex + ");");
+	}
+	
 	out.push(block.elts[0].whitespace);
 	for (i = 1; i < block.elts.length; i++) {
 		out.push(render(block.elts[i]));
@@ -701,8 +732,8 @@ FunctionExpr.prototype.render = function(ctx) {
 /* ArrowFunctionExpr */
 function ArrowFunctionExpr(elts) {
 	this.elts = elts;
-	this.args = elts[1];
-	this.expr = elts[4];
+	this.args = elts[2];
+	this.expr = elts[5];
 }
 exports.ArrowFunctionExpr = ArrowFunctionExpr;
 ArrowFunctionExpr.prototype.astType = 'ArrowFunctionExpr';
@@ -714,7 +745,7 @@ ArrowFunctionExpr.prototype.validate = function(ctx) {
 };
 
 ArrowFunctionExpr.prototype.render = function(ctx) {
-	var out = ['function ', render(this.elts[0]), render(this.elts[1]), render(this.elts[2]), '{' + this.elts[3].whitespace, 'return ', render(this.expr), '; }'];
+	var out = [render(this.elts[0]), render(this.elts[1]), render(this.elts[2]), render(this.elts[3]), '{' + this.elts[4].whitespace, 'return ', render(this.expr), '; }'];
 	
 	return out.join('');
 };

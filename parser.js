@@ -305,13 +305,10 @@ Parser.prototype.parseStatement = function() {
 		case 'return':   return this.parseReturn();
 		case 'throw':    return this.parseThrow();
 		case 'var':      return this.parseVar();
+		case 'function': return this.parseFunctionStatement();
 		case '#include': return this.parseIncludePragma();
 		case '#declare': return this.parseDeclarePragma();
-		
-		case 'function':
-			this.error("the 'function' keyword is not required for defining functions");
-			break;
-			
+					
 		case 'try':
 			this.error("try/catch blocks are not supported. Use the built-in trycatch() function");
 			break;
@@ -435,6 +432,30 @@ Parser.prototype.parseVar = function() {
 	return new ast.VarStatement(elts);
 };
 
+Parser.prototype.parseFunctionStatement = function() {
+	var elts = [
+		this.expect('function'),
+		this.expect('IDENT'),
+		this.expect('('),
+		this.parseExprList(),
+		this.expect(')')
+	];
+	
+	if (!elts[3].checkFormalParams()) {
+		this.error("invalid formal parameter list in function statement");
+	}
+	
+	// do we have a thisElt?
+	var thisElts = null;
+	if (this.peek().type === ':') {
+		thisElts = [this.next(), this.expect('IDENT')];
+	}
+	
+	elts.push(this.parseBlock());
+	
+	return new ast.FunctionStatement(elts, thisElts);
+};
+
 Parser.prototype.parseExprList = function() {
 	var elts = [];
 	while (true) {
@@ -511,6 +532,9 @@ Parser.prototype.parseExpr = function(prec) {
 		case 'false':
 			expr = new ast.TrueFalseExpr([this.next()]);
 			break;
+		case 'function':
+			expr = this.parseFunctionExpr();
+			break;
 		case 'IDENT':
 			expr = new ast.IdentExpr([this.next()]);
 			break;
@@ -526,7 +550,7 @@ Parser.prototype.parseExpr = function(prec) {
 			this.next();
 			expr = new ast.StringExpr([this.findString('/')]);
 			break;
-		case '%':
+		case '@':
 			expr = this.parsePassExpr();
 			break;
 		case '...':
@@ -656,7 +680,7 @@ Parser.prototype.parseExpr = function(prec) {
 
 Parser.prototype.parsePassExpr = function() {
 	var elts = [
-		this.expect('%')
+		this.expect('@')
 	];
 	if (this.peek().type === 'IDENT') {
 		elts.push(this.next());
@@ -735,6 +759,35 @@ Parser.prototype.parseNewExpr = function() {
 	return new ast.NewExpr(elts);
 };
 
+Parser.prototype.parseFunctionExpr = function() {
+	var elts = [
+		this.expect('function'),
+		this.expect('('),
+		this.parseExprList(),
+		this.expect(')')
+	];
+	
+	if (!elts[2].checkFormalParams()) {
+		this.error("invalid formal parameter list in function expression");
+	}
+	
+	var thisElts = null;
+	if (this.peek().type === ':') {
+		thisElts = [this.next(), this.expect('IDENT')];
+	}
+	
+	// handle arrow functions
+	if (!thisElts && this.peek().type === '->') {
+		elts.push(this.next());
+		elts.push(this.parseExpr());
+		return new ast.ArrowFunctionExpr(elts);
+	}
+	
+	// otherwise, we expect a block
+	elts.push(this.parseBlock());
+	return new ast.FunctionExpr(elts, thisElts);
+};
+
 Parser.prototype.parseGroupExpr = function() {
 	var elts = [
 		this.expect('(')
@@ -742,45 +795,13 @@ Parser.prototype.parseGroupExpr = function() {
 	var exprList = this.parseExprList();
 	var closeParen = this.expect(')');
 	
-	var thisElts = null;
-	if (this.peek().type === '@') {
-		// this is going to be a function expr with a this var
-		thisElts = [this.next(), this.expect('IDENT')];
+	if (exprList.elts.length !== 1) {
+		// TODO: fix this error message
+		this.error("weird group expression");
 	}
-	
-	if (this.peek().type === '{') {
-		// this is actually a function expr
-		if (!exprList.checkFormalParams()) {
-			this.error("invalid formal parameter list before '{'");
-		}
-		elts.push(exprList);
-		elts.push(closeParen);
-		elts.push(this.parseBlock());
-		return new ast.FunctionExpr(elts, thisElts);
-	}
-	else if (thisElts !== null) {
-		// this needed to be a function
-		this.expect('{');
-	}
-	else if (this.peek().type === '->') {
-		// this is an arrow function
-		if (!exprList.checkFormalParams()) {
-			this.error("invalid formal parameter list before '->'");
-		}
-		elts.push(exprList);
-		elts.push(closeParen);
-		elts.push(this.next());
-		elts.push(this.parseExpr());
-		return new ast.ArrowFunctionExpr(elts);
-	}
-	else {
-		if (exprList.elts.length !== 1) {
-			this.error("unexpected " + this.peek().type + " after formal parameter list");
-		}
-		elts.push(exprList.elts[0]);
-		elts.push(closeParen);
-		return new ast.GroupExpr(elts);
-	}
+	elts.push(exprList.elts[0]);
+	elts.push(closeParen);
+	return new ast.GroupExpr(elts);
 };
 
 Parser.prototype.parseSimpleArrowFunction = function() {
@@ -792,7 +813,7 @@ Parser.prototype.parseSimpleArrowFunction = function() {
 };
 
 Parser.prototype.parseExprStatement = function() {
-	var elts = [], thisElts;
+	var elts = [];
 	if (this.peek().type === ';') {
 		elts.push(this.next());
 	}
@@ -813,23 +834,7 @@ Parser.prototype.parseExprStatement = function() {
 			}
 			return new ast.LabeledStatement(elts);
 		}
-		
-		// do we have a thisElt?
-		thisElts = null;
-		if (this.peek().type === '@') {
-			thisElts = [this.next(), this.expect('IDENT')];
-		}
-		
-		if (expr.checkFuncSpec && expr.checkFuncSpec() && this.peek().type === '{') {
-			// this is actually a function declaration
-			elts = expr.elts;
-			elts.push(this.parseBlock());
-			return new ast.FunctionStatement(elts, thisElts);
-		}
-		else if (thisElts !== null) {
-			this.expect('{');
-		}
-		
+				
 		elts.push(expr);
 		elts.push(this.expect(';'));
 	}
