@@ -306,9 +306,10 @@ Parser.prototype.parseStatement = function() {
 		case 'throw':    return this.parseThrow();
 		case 'var':      return this.parseVar();
 		case 'function': return this.parseFunctionStatement();
+		case 'switch':   return this.parseSwitch();
 		case '#include': return this.parseIncludePragma();
 		case '#declare': return this.parseDeclarePragma();
-					
+			
 		case 'try':
 			this.error("try/catch blocks are not supported. Use the built-in trycatch() function");
 			break;
@@ -337,6 +338,53 @@ Parser.prototype.parseIf = function() {
 	}
 	
 	return new ast.IfStatement(elts);
+};
+
+Parser.prototype.parseSwitch = function() {
+	var elts = [
+		this.expect('switch'),
+		this.expect('('),
+		this.parseExpr(),
+		this.expect(')'),
+		this.expect('{')
+	];
+	
+	var caseElts, lastAstType;
+	while (this.peek().type === 'case') {
+		caseElts = [
+			this.expect('case'),
+			this.parseExpr(),
+			this.expect(':')
+		];
+		
+		while (this.peek().type !== '}' && this.peek().type !== 'case' && this.peek().type !== 'default') {
+			caseElts.push(this.parseStatement());
+		}
+		
+		lastAstType = caseElts[caseElts.length-1].astType;
+		if (lastAstType !== 'ReturnStatement' && lastAstType !== 'BreakStatement' && lastAstType !== 'ThrowStatement') {
+			this.error("switch case must end with return, break, or throw statement");
+		}
+		
+		elts.push(new ast.SwitchCase(caseElts));
+	}
+	
+	if (this.peek().type === 'default') {
+		caseElts = [
+			this.expect('default'),
+			this.expect(':')
+		];
+		
+		while (this.peek().type !== '}') {
+			caseElts.push(this.parseStatement());
+		}
+				
+		elts.push(new ast.SwitchDefaultCase(caseElts));
+	}
+	
+	elts.push(this.expect('}'));
+		
+	return new ast.SwitchStatement(elts);
 };
 
 Parser.prototype.parseWhile = function() {
@@ -437,14 +485,10 @@ Parser.prototype.parseFunctionStatement = function() {
 		this.expect('function'),
 		this.expect('IDENT'),
 		this.expect('('),
-		this.parseExprList(),
+		this.parseFormalParams(),
 		this.expect(')')
 	];
-	
-	if (!elts[3].checkFormalParams()) {
-		this.error("invalid formal parameter list in function statement");
-	}
-	
+		
 	// do we have a thisElt?
 	var thisElts = null;
 	if (this.peek().type === ':') {
@@ -471,6 +515,38 @@ Parser.prototype.parseExprList = function() {
 		}
 	}
 	return new ast.ExprList(elts);
+};
+
+Parser.prototype.parseFormalParams = function() {
+	var elts = [], expr, peekType, hasYada;
+	while (this.peek().type !== ')') {
+		peekType = this.peek().type;
+		
+		if (hasYada) {
+			this.error("... argument must be last in formal params");
+		}
+		
+		if (peekType !== 'IDENT' && peekType !== '@' && peekType !== '...') {
+			this.error("unexpected '" + (t.text || t.type) + "' in formal params");
+		}
+	
+		if (peekType === '@' && elts.length > 0) {
+			this.error("@ argument must be first in formal params");
+		}
+		
+		if (peekType === '...') {
+			hasYada = true;
+		}
+
+		elts.push(this.parseExpr());
+		if (this.peek().type === ',') {
+			elts.push(this.next());
+		}
+		else {
+			break;
+		}
+	}
+	return new ast.FormalParams(elts);
 };
 
 function precOf(t) {
@@ -763,14 +839,10 @@ Parser.prototype.parseFunctionExpr = function() {
 	var elts = [
 		this.expect('function'),
 		this.expect('('),
-		this.parseExprList(),
+		this.parseFormalParams(),
 		this.expect(')')
 	];
-	
-	if (!elts[2].checkFormalParams()) {
-		this.error("invalid formal parameter list in function expression");
-	}
-	
+		
 	var thisElts = null;
 	if (this.peek().type === ':') {
 		thisElts = [this.next(), this.expect('IDENT')];
@@ -790,17 +862,10 @@ Parser.prototype.parseFunctionExpr = function() {
 
 Parser.prototype.parseGroupExpr = function() {
 	var elts = [
-		this.expect('(')
+		this.expect('('),
+		this.parseExpr(),
+		this.expect(')')
 	];
-	var exprList = this.parseExprList();
-	var closeParen = this.expect(')');
-	
-	if (exprList.elts.length !== 1) {
-		// TODO: fix this error message
-		this.error("weird group expression");
-	}
-	elts.push(exprList.elts[0]);
-	elts.push(closeParen);
 	return new ast.GroupExpr(elts);
 };
 

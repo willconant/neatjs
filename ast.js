@@ -135,6 +135,55 @@ IfStatement.prototype.validate = function(ctx) {
 	}
 };
 
+/* SwitchStatement */
+function SwitchStatement(elts) {
+	this.elts = elts;
+	this.testExpr = elts[2];
+}
+exports.SwitchStatement = SwitchStatement;
+SwitchStatement.prototype.astType = 'SwitchStatement';
+
+SwitchStatement.prototype.validate = function(ctx) {
+	var i;
+	ctx = {declared: ctx.declared, program: ctx.program};
+	this.testExpr.validate(ctx);
+	for (i = 5; i < (this.elts.length-1); i++) {
+		this.elts[i].validate(ctx);
+	}
+};
+
+/* SwitchCase */
+function SwitchCase(elts) {
+	this.elts = elts;
+	this.guardExpr = elts[1];
+}
+exports.SwitchCase = SwitchCase;
+SwitchCase.prototype.astType = 'SwitchCase';
+
+SwitchCase.prototype.validate = function(ctx) {
+	var i;
+	ctx = {declared: ctx.declared, program: ctx.program};
+	this.guardExpr.validate(ctx);
+	for (i = 3; i < this.elts.length; i++) {
+		this.elts[i].validate(ctx);
+	}
+};
+
+/* SwitchDefaultCase */
+function SwitchDefaultCase(elts) {
+	this.elts = elts;
+}
+exports.SwitchDefaultCase = SwitchDefaultCase;
+SwitchDefaultCase.prototype.astType = 'SwitchDefaultCase';
+
+SwitchDefaultCase.prototype.validate = function(ctx) {
+	var i;
+	ctx = {declared: ctx.declared, program: ctx.program};
+	for (i = 2; i < this.elts.length; i++) {
+		this.elts[i].validate(ctx);
+	}
+};
+
 /* WhileStatement */
 function WhileStatement(elts) {
 	this.elts = elts;
@@ -363,12 +412,16 @@ ThrowStatement.prototype.validate = function(ctx) {
 	this.elts[1].validate(ctx);
 }
 
-/* ArgsList */
-function ArgsList(elts) {
+/* BreakStatement */
+function BreakStatement(elts) {
 	this.elts = elts;
 }
-exports.ArgsList = ArgsList;
-ArgsList.prototype.astType = 'ArgsList';
+exports.BreakStatement = BreakStatement;
+BreakStatement.prototype.astType = 'BreakStatement';
+
+BreakStatement.prototype.validate = function(ctx) {
+	// validate the label?
+}
 
 /* ExprList */
 function ExprList(elts) {
@@ -377,20 +430,23 @@ function ExprList(elts) {
 exports.ExprList = ExprList;
 ExprList.prototype.astType = 'ExprList';
 
-ExprList.prototype.checkFormalParams = function() {
-	var i, astType;
+ExprList.prototype.validate = function(ctx) {
+	var i;
 	for (i = 0; i < this.elts.length; i++) {
 		if (i % 2 === 0) {
-			astType = this.elts[i].astType;
-			if (astType !== 'IdentExpr' && astType !== 'PassExpr' && astType !== 'YadaExpr') {
-				return false;
-			}
+			this.elts[i].validate(ctx);
 		}
 	}
-	return true;
 };
 
-ExprList.prototype.declareArgs = function(ctx, noPassExpr) {
+/* FormalParams */
+function FormalParams(elts) {
+	this.elts = elts;
+}
+exports.FormalParams = FormalParams;
+FormalParams.prototype.astType = 'FormalParams';
+
+FormalParams.prototype.declareArgs = function(ctx) {
 	var i, ident;
 	for (i = 0; i < this.elts.length; i++) {
 		if (i % 2 === 0) {
@@ -400,9 +456,6 @@ ExprList.prototype.declareArgs = function(ctx, noPassExpr) {
 					throw [ident, "'" + ident.text + "' is already declared in this scope"];
 				}
 				ctx.declared[ident.text] = 1;
-			}
-			else if (noPassExpr) {
-				throw [this.elts[i], "arrow functions connot have @ or ... params"];
 			}
 			else if (this.elts[i].astType === 'YadaExpr') {
 				ident = this.elts[i].elts[1];
@@ -423,13 +476,8 @@ ExprList.prototype.declareArgs = function(ctx, noPassExpr) {
 	}
 };
 
-ExprList.prototype.validate = function(ctx) {
-	var i;
-	for (i = 0; i < this.elts.length; i++) {
-		if (i % 2 === 0) {
-			this.elts[i].validate(ctx);
-		}
-	}
+FormalParams.prototype.validate = function(ctx) {
+	// we don't have to do anything
 };
 
 /* StringExpr */
