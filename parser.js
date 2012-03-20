@@ -518,23 +518,23 @@ Parser.prototype.parseExprList = function() {
 };
 
 Parser.prototype.parseFormalParams = function() {
-	var elts = [], expr, peekType, hasYada;
+	var elts = [], expr, t, hasYada;
 	while (this.peek().type !== ')') {
-		peekType = this.peek().type;
+		t = this.peek();
 		
 		if (hasYada) {
 			this.error("... argument must be last in formal params");
 		}
 		
-		if (peekType !== 'IDENT' && peekType !== '@' && peekType !== '...') {
+		if (t.type !== 'IDENT' && t.type !== '@' && t.type !== '...') {
 			this.error("unexpected '" + (t.text || t.type) + "' in formal params");
 		}
 	
-		if (peekType === '@' && elts.length > 0) {
+		if (t.type === '@' && elts.length > 0) {
 			this.error("@ argument must be first in formal params");
 		}
 		
-		if (peekType === '...') {
+		if (t.type === '...') {
 			hasYada = true;
 		}
 
@@ -566,9 +566,11 @@ function precOf(t) {
 		case '>=': 
 		case 'instanceof':
 			return 40;
-			
+		
 		case '==':
 		case '!=':
+		case '===':
+		case '!==':
 			return 30;
 			
 		case '&&':
@@ -665,19 +667,19 @@ Parser.prototype.parseExpr = function(prec) {
 	
 	GOBBLE: while (true) {
 		switch (this.peek().type) {
+			case '==':
+				this.error("use of '==' is not safe in this context, use '===' instead");
+				break;
+			case '!=':
+				this.error("use of '!=' is not safe in this context, use '!==' instead");
+				break;
 			case '===':
-				this.error("use '==' instead of '==='");
-				break;
 			case '!==':
-				this.error("use '!=' instead of '!=='");
-				break;
 			case '+':
 			case '-':
 			case '*':
 			case '/':
 			case '%':
-			case '==':
-			case '!=':
 			case '<':
 			case '<=':
 			case '>':

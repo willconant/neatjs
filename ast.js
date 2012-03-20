@@ -558,15 +558,10 @@ BinaryOpExpr.prototype.validate = function(ctx) {
 
 BinaryOpExpr.prototype.render = function() {
 	var out = [
-		render(this.elts[0])
+		render(this.elts[0]),
+		render(this.elts[1]),
+		render(this.elts[2])
 	];
-	if (this.elts[1].text === '==' || this.elts[1].text === '!=') {
-		out.push(this.elts[1].text + '=' + this.elts[1].whitespace);
-	}
-	else {
-		out.push(render(this.elts[1]));
-	}
-	out.push(render(this.elts[2]));
 	return out.join('');
 };
 
